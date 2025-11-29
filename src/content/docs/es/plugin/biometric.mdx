@@ -1,0 +1,228 @@
+---
+title: Biometría
+description: Solicita al usuario autenticación biométrica en Android e iOS.
+plugin: biometric
+i18nReady: true
+---
+
+import PluginLinks from '@components/PluginLinks.astro';
+import Compatibility from '@components/plugins/Compatibility.astro';
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import CommandTabs from '@components/CommandTabs.astro';
+import PluginPermissions from '@components/PluginPermissions.astro';
+
+<PluginLinks plugin={frontmatter.plugin} />
+
+Solicita al usuario autenticación biométrica en Android e iOS.
+
+## Plataformas soportadas
+
+<Compatibility plugin={frontmatter.plugin} />
+
+## Configuración
+
+Instala el plugin de biometría para comenzar.
+
+<Tabs>
+    <TabItem label="Automático">
+
+    Utiliza el administrador de paquetes de tu proyecto para agregar la dependencia:
+
+    <CommandTabs npm="npm run tauri add biometric"
+    yarn="yarn run tauri add biometric"
+    pnpm="pnpm tauri add biometric"
+    deno="deno task tauri add biometric"
+    bun="bun tauri add biometric"
+    cargo="cargo tauri add biometric" />
+
+    </TabItem>
+    <TabItem label="Manual">
+        <Steps>
+        1.  Ejecuta el siguiente comando en la carpeta `src-tauri` para agregar el plugin a las dependencias del proyecto en `Cargo.toml`:
+
+            ```sh frame=none
+            cargo add tauri-plugin-biometric --target 'cfg(any(target_os = "android", target_os = "ios"))'
+            ```
+
+        2.  Modifica `lib.rs` para inicializar el plugin:
+
+            ```rust title="src-tauri/src/lib.rs" ins={5-6}
+            #[cfg_attr(mobile, tauri::mobile_entry_point)]
+            pub fn run() {
+                tauri::Builder::default()
+                    .setup(|app| {
+                        #[cfg(mobile)]
+                        app.handle().plugin(tauri_plugin_biometric::Builder::new().build());
+                        Ok(())
+                    })
+                    .run(tauri::generate_context!())
+                    .expect("error while running tauri application");
+            }
+            ```
+
+        3.  Instala los enlaces JavaScript Guest utilizando tu administrador de paquetes JavaScript preferido:
+
+            <CommandTabs
+            npm = "npm install @tauri-apps/plugin-biometric"
+            yarn = "yarn add @tauri-apps/plugin-biometric"
+            pnpm = "pnpm add @tauri-apps/plugin-biometric"
+            deno = "deno add npm:@tauri-apps/plugin-biometric"
+            bun = "bun add @tauri-apps/plugin-biometric"
+            />
+        </Steps>
+    </TabItem>
+
+</Tabs>
+
+## Configuración
+
+En iOS, el plugin biométrico requiere el valor de la lista de propiedades de información `NSFaceIDUsageDescription`, que debe describir por qué tu aplicación necesita utilizar la autenticación biométrica.
+
+En el archivo `src-tauri/Info.ios.plist`, agrega el siguiente fragmento:
+
+```xml title=src-tauri/Info.ios.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>NSFaceIDUsageDescription</key>
+		<string>Autenticarse con biometría</string>
+	</dict>
+</plist>
+```
+
+## Uso
+
+Este plugin te permite verificar la disponibilidad de la autenticación biométrica en un dispositivo, solicitar al usuario la autenticación biométrica y verificar el resultado para determinar si la autenticación fue exitosa o no.
+
+### Verificar estado
+
+Puedes verificar el estado de la autenticación biométrica, incluida su disponibilidad y los tipos de métodos de autenticación biométrica admitidos.
+
+<Tabs syncKey="lang">
+<TabItem label="JavaScript">
+
+```javascript
+import { checkStatus } from '@tauri-apps/plugin-biometric';
+
+const status = await checkStatus();
+if (status.isAvailable) {
+  console.log('¡Sí! La autenticación biométrica está disponible');
+} else {
+  console.log(
+    '¡No! La autenticación biométrica no está disponible debido a ' + status.error
+  );
+}
+```
+
+</TabItem>
+<TabItem label="Rust">
+
+```rust
+use tauri_plugin_biometric::BiometricExt;
+
+fn check_biometric(app_handle: tauri::AppHandle) {
+    let status = app_handle.biometric().status().unwrap();
+    if status.is_available {
+        println!("¡Sí! La autenticación biométrica está disponible");
+    } else {
+        println!("¡No! La autenticación biométrica no está disponible debido a: {}", status.error.unwrap());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Autenticar
+
+Para solicitar al usuario la autenticación biométrica, utiliza el método `authenticate()`.
+
+<Tabs syncKey="lang">
+
+<TabItem label="JavaScript">
+
+```javascript ins={18}
+import { authenticate } from '@tauri-apps/plugin-biometric';
+
+const options = {
+  // Establecer en true si deseas que el usuario pueda autenticarse usando la contraseña del teléfono
+  allowDeviceCredential: false,
+  cancelTitle: "La función no funcionará si se cancela",
+
+  // Característica solo para iOS
+  fallbackTitle: 'Lo siento, la autenticación falló',
+
+  // Características solo para Android
+  title: 'Función Tauri',
+  subtitle: 'Autentícate para acceder a la función Tauri bloqueada',
+  confirmationRequired: true,
+};
+
+try {
+  await authenticate('Esta función está bloqueada', options);
+  console.log(
+    '¡Hurra! ¡Autenticado con éxito! ¡Ahora podemos realizar la función Tauri bloqueada!'
+  );
+} catch (err) {
+  console.log('¡Oh no! La autenticación falló debido a ' + err.message);
+}
+```
+
+</TabItem>
+
+<TabItem label="Rust">
+
+```rust ins={21}
+use tauri_plugin_biometric::{BiometricExt, AuthOptions};
+
+fn bio_auth(app_handle: tauri::AppHandle) {
+
+    let options = AuthOptions {
+        // Set True if you want the user to be able to authenticate using phone password
+        allow_device_credential:false,
+        cancel_title: Some("Feature won't work if Canceled".to_string()),
+
+        // iOS only feature
+        fallback_title: Some("Sorry, authentication failed".to_string()),
+
+        // Android only features
+        title: Some("Tauri feature".to_string()),
+        subtitle: Some("Authenticate to access the locked Tauri function".to_string()),
+        confirmation_required: Some(true),
+    };
+
+    // if the authentication was successful, the function returns Result::Ok()
+    // otherwise returns Result::Error()
+    match app_handle.biometric().authenticate("This feature is locked".to_string(), options) {
+        Ok(_) => {
+            println!("Hooray! Successfully Authenticated! We can now perform the locked Tauri function!");
+        }
+        Err(e) => {
+            println!("Oh no! Authentication failed because : {e}");
+        }
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Permisos
+
+De forma predeterminada, todos los comandos y ámbitos de plugins potencialmente peligrosos están bloqueados y no se puede acceder a ellos. Debes modificar los permisos en tu configuración de `capabilities` para habilitarlos.
+
+Consulta la [Descripción general de capacidades](/es/security/capabilities/) para obtener más información y la [guía paso a paso](/es/learn/security/using-plugin-permissions/) para usar los permisos de los plugins.
+
+```json title="src-tauri/capabilities/default.json" ins={6}
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": ["biometric:default"]
+}
+```
+
+<PluginPermissions plugin={frontmatter.plugin} />

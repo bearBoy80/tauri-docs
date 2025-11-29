@@ -1,0 +1,87 @@
+---
+title: Node.js サイドカー
+description: Node.js をサイドカーとして使用する
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+Node.js サイドカーを使用すると、Tauri アプリケーションから Node.js スクリプトを実行できます。
+これは、Node.js エコシステムの豊富なパッケージを利用したい場合や、既存の Node.js コードを再利用したい場合に便利です。
+
+## 前提条件
+
+Node.js サイドカーを使用するには、まず [サイドカー (外部バイナリ)](/develop/sidecar/) のガイドに従って、基本的なサイドカーの設定を行う必要があります。
+
+さらに、Node.js ランタイムをサイドカーとしてバンドルする必要があります。これには、[`pkg`](https://github.com/vercel/pkg) などのツールを使用して、Node.js スクリプトを実行可能なバイナリにパッケージ化する方法が一般的です。
+
+## 設定
+
+1.  Node.js プロジェクトを作成し、必要な依存関係をインストールします。
+
+    ```bash
+    mkdir my-sidecar
+    cd my-sidecar
+    npm init -y
+    npm install
+    ```
+
+2.  `index.js` ファイルを作成し、実行したいコードを記述します。
+
+    ```javascript title="my-sidecar/index.js"
+    console.log('Hello from Node.js sidecar!');
+    ```
+
+3.  `pkg` を使用して、Node.js スクリプトをバイナリにコンパイルします。
+
+    ```bash
+    npx pkg index.js -t node18-linux-x64,node18-macos-x64,node18-win-x64 --out-path ../src-tauri/binaries
+    ```
+
+    :::note
+    プラットフォームターゲットは、開発環境とターゲット環境に合わせて調整してください。
+    :::
+
+4.  `src-tauri/binaries` ディレクトリ内のバイナリの名前を、Tauri のサイドカー命名規則に従って変更します。
+    例: `my-sidecar-x86_64-unknown-linux-gnu`
+
+5.  `tauri.conf.json` でサイドカーを設定します。
+
+    ```json title="tauri.conf.json"
+    {
+      "bundle": {
+        "externalBin": [
+          "binaries/my-sidecar"
+        ]
+      }
+    }
+    ```
+
+## 使用法
+
+Rust または JavaScript からサイドカーを実行できます。
+
+### JavaScript
+
+```javascript
+import { Command } from '@tauri-apps/plugin-shell';
+
+const command = Command.sidecar('binaries/my-sidecar');
+const output = await command.execute();
+console.log(output.stdout);
+```
+
+### Rust
+
+```rust
+use tauri_plugin_shell::ShellExt;
+
+let sidecar_command = app.shell().sidecar("my-sidecar").unwrap();
+let (mut _rx, _child) = sidecar_command.spawn().expect("Failed to spawn sidecar");
+```
+
+## 通信
+
+サイドカーとメインアプリケーション間の通信には、標準入出力 (stdin/stdout) を使用するのが一般的です。
+Node.js スクリプトで `console.log` を使用してデータを出力し、Tauri アプリ側でそれを読み取ることができます。
+逆に、Tauri アプリからサイドカーの stdin にデータを書き込むこともできます。
