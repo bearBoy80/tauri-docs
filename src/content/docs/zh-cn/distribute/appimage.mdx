@@ -1,0 +1,71 @@
+---
+title: AppImage
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+`AppImage` 是一种不依赖于系统安装包的分发格式，而是捆绑了应用程序所需的所有依赖项和文件。因此，输出文件较大，但更易于分发，因为它受许多 Linux 发行版支持，并且无需安装即可执行。用户只需使文件可执行 (`chmod a+x MyProject.AppImage`) 即可运行它 (`./MyProject.AppImage`)。
+
+AppImage 非常方便，如果你无法制作针对发行版包管理器的包，它可以简化分发过程。尽管如此，你应该谨慎使用它，因为文件大小会从 2-6 MB 增加到 70+ MB。
+
+:::note
+
+macOS 和 Linux 上的 GUI 应用程序不会从你的 shell 配置文件 (`.bashrc`, `.bash_profile`, `.zshrc` 等) 继承 `$PATH`。查看 Tauri 的 [fix-path-env-rs](https://github.com/tauri-apps/fix-path-env-rs) crate 以解决此问题。
+
+:::
+
+## 限制
+
+glibc 等核心库经常破坏与旧系统的兼容性。因此，你必须使用你打算支持的最旧的基础系统构建 Tauri 应用程序。像 Ubuntu 18.04 这样相对较旧的系统比 Ubuntu 22.04 更合适，因为在 Ubuntu 22.04 上编译的二进制文件对 glibc 版本的要求更高，因此在旧系统上运行时，你会遇到像 `/usr/lib/libc.so.6: version 'GLIBC_2.33' not found` 这样的运行时错误。我们建议使用 Docker 容器或 GitHub Actions 为 Linux 构建你的 Tauri 应用程序。
+
+有关更多信息，请参阅问题 [tauri-apps/tauri#1355](https://github.com/tauri-apps/tauri/issues/1355) 和 [rust-lang/rust#57497](https://github.com/rust-lang/rust/issues/57497)，以及 [AppImage 指南](https://docs.appimage.org/reference/best-practices.html#binaries-compiled-on-old-enough-base-system)。
+
+## 通过 GStreamer 支持多媒体
+
+如果你的应用播放音频/视频，你需要启用 `tauri.conf.json > bundle > linux > appimage > bundleMediaFramework`。这将增加 AppImage 包的大小，以包含媒体播放所需的额外 gstreamer 文件。此标志目前仅在 Ubuntu 构建系统上完全支持。确保你的构建系统具有你的应用在运行时可能需要的所有插件。
+
+:::caution
+
+`ugly` 包中的 GStreamer 插件的许可方式可能使其难以作为应用的一部分进行分发。
+
+:::
+
+{/* TODO: Add some reference links for gst setup/plugins */}
+
+## 自定义文件
+
+要在 AppImage 中包含你不想通过 Tauri 的 [`resources` 功能](/zh-cn/develop/resources/) 包含的自定义文件，你可以在 `tauri.conf.json > bundle > linux > appimage > files` 中提供文件或文件夹列表。配置对象将 AppImage 中的路径映射到文件系统上的文件路径（相对于 `tauri.conf.json` 文件）。这是一个配置示例：
+
+```json title="tauri.conf.json"
+{
+  "bundle": {
+    "linux": {
+      "appimage": {
+        "files": {
+          "/usr/share/README.md": "../README.md", // 将 ../README.md 文件复制到 <appimage>/usr/share/README.md
+          "/usr/assets": "../assets/" // 将整个 ../assets 目录复制到 <appimage>/usr/assets
+        }
+      }
+    }
+  }
+}
+```
+
+:::note
+
+请注意，目标路径目前必须以 `/usr/` 开头。
+
+:::
+
+## 适用于基于 ARM 的设备的 AppImage
+
+:::note[2025 年 8 月更新]
+Github 已经 [发布](https://github.blog/changelog/2025-08-07-arm64-hosted-runners-for-public-repositories-are-now-generally-available/#get-started) 了公开可用的 `ubuntu-22.04-arm` 和 `ubuntu-24.04-arm` 运行器。你可以使用这些来构建你的应用而无需任何更改，典型的构建应该需要大约 10 分钟。
+:::
+
+`linuxdeploy`（Tauri 使用的 AppImage 工具）目前 [不支持交叉编译] ARM AppImage。这意味着 ARM AppImage 只能在 ARM 设备或模拟器上构建。
+
+查看我们的 [GitHub Action 指南](/zh-cn/distribute/pipelines/github/#arm-runner-compilation) 以获取利用 QEMU 构建应用的示例工作流。请注意，这非常慢，仅建议在构建分钟数免费的公共存储库中使用。在私有存储库中，GitHub 的 ARM 运行器应该更具成本效益且更容易设置。
+
+[不支持交叉编译]: https://github.com/linuxdeploy/linuxdeploy/issues/258

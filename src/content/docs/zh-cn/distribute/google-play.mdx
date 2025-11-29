@@ -1,0 +1,152 @@
+---
+title: Google Play
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+Google Play 是由 Google 维护的 Android 应用程序分发服务。
+
+本指南涵盖在 Google Play 上发布 Android 应用程序的要求。
+:::note
+Tauri 在底层使用 Android Studio 项目，因此任何构建和发布 Android 应用程序的官方实践也适用于你的应用程序。
+有关更多信息，请参阅 [官方文档][official documentation]。
+:::
+
+## 要求
+
+要在 Play Store 中分发 Android 应用程序，你必须创建一个 [Play Console] 开发者帐户。
+
+此外，你必须设置 [代码签名][code signing]。
+
+有关更多信息，请参阅 [发布清单][release checklist]。
+
+## 更改应用图标
+
+运行 `tauri android init` 设置 Android Studio 项目后，你可以使用 `tauri icon` 命令更新应用程序图标。
+
+<CommandTabs
+  npm="npm run tauri icon /path/to/app-icon.png"
+  yarn="yarn tauri icon /path/to/app-icon.png"
+  pnpm="pnpm tauri icon /path/to/app-icon.png"
+  deno="deno task tauri icon /path/to/app-icon.png"
+  bun="bun tauri icon /path/to/app-icon.png"
+  cargo="cargo tauri icon /path/to/app-icon.png"
+/>
+
+## 设置
+
+创建 Play Console 开发者帐户后，你需要在 Google [Play Console] 网站上注册你的应用程序。它将指导你完成所有必需的表单和设置任务。
+
+## 构建
+
+你可以运行以下命令构建 Android App Bundle (AAB) 以上传到 Google Play：
+
+<CommandTabs
+  npm="npm run tauri android build -- --aab"
+  yarn="yarn tauri android build --aab"
+  pnpm="pnpm tauri android build --aab"
+  deno="deno task tauri android build --aab"
+  bun="bun tauri android build --aab"
+  cargo="cargo tauri android build --aab"
+/>
+
+Tauri 从 [`tauri.conf.json > version`] 中定义的值派生版本代码 (`versionCode = major*1000000 + minor*1000 + patch`)。
+如果你需要不同的版本代码方案（例如顺序代码），可以在 [`tauri.conf.json > bundle > android > versionCode`] 配置中设置自定义版本代码：
+
+```json title="tauri.conf.json" ins={4}
+{
+  "bundle": {
+    "android": {
+      "versionCode": 100
+    }
+  }
+}
+```
+
+### 构建 APK
+
+AAB 格式是上传到 Google Play 的推荐包文件，但也可以生成 APK
+用于在商店之外进行测试或分发。
+要为你的应用程序编译 APK，你可以使用 `--apk` 参数：
+
+<CommandTabs
+  npm="npm run tauri android build -- --apk"
+  yarn="yarn tauri android build --apk"
+  pnpm="pnpm tauri android build --apk"
+  deno="deno task tauri android build --apk"
+  bun="bun tauri android build --apk"
+  cargo="cargo tauri android build --apk"
+/>
+
+### 架构选择
+
+默认情况下，Tauri 为所有支持的架构（aarch64、armv7、i686 和 x86_64）构建你的应用程序。
+要仅编译目标的子集，可以使用 `--target` 参数：
+
+<CommandTabs
+  npm="npm run tauri android build -- --aab --target aarch64 --target armv7"
+  yarn="yarn tauri android build --aab --target aarch64 --target armv7"
+  pnpm="pnpm tauri android build --aab --target aarch64 --target armv7"
+  deno="deno task tauri android build --aab --target aarch64 --target armv7"
+  bun="bun tauri android build --aab --target aarch64 --target armv7"
+  cargo="cargo tauri android build --aab --target aarch64 --target armv7"
+/>
+
+### 每个架构单独的包
+
+默认情况下，生成的 AAB 和 APK 是通用的，包含所有支持的目标。
+要为每个目标生成单独的包，请使用 `--split-per-abi` 参数。
+:::note
+这仅对于测试或 Google Play 之外的分发有用，因为它减小了文件大小，但上传不太方便。Google Play 会为你处理支持的架构。
+:::
+
+<CommandTabs
+  npm="npm run tauri android build -- --apk --split-per-abi"
+  yarn="yarn tauri android build --apk --split-per-abi"
+  pnpm="pnpm tauri android build --apk --split-per-abi"
+  deno="deno task tauri android build --apk --split-per-abi"
+  bun="bun tauri android build --apk --split-per-abi"
+  cargo="cargo tauri android build --apk --split-per-abi"
+/>
+
+### 更改最低支持的 Android 版本
+
+Tauri 应用程序支持的最低 Android 版本是 Android 7.0（代号 Nougat，SDK 24）。
+
+有一些技术可以使用较新的 Android API，同时仍然支持旧系统。
+有关更多信息，请参阅 [Android 文档](https://developer.android.com/training/basics/supporting-devices/platforms#version-codes)。
+
+如果你的应用程序必须在较新的 Android 版本上执行，你可以配置 [`tauri.conf.json > bundle > android > minSdkVersion`]：
+
+```json title="tauri.conf.json" ins={4}
+{
+  "bundle": {
+    "android": {
+      "minSdkVersion": 28
+    }
+  }
+}
+```
+
+## 上传
+
+构建应用程序并生成 Android App Bundle 文件后，
+可以在 `gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab` 中找到，
+你现在可以创建一个新版本并在 Google Play Console 中上传它。
+
+首次上传必须在网站上手动完成，以便验证你的应用程序签名和包标识符。
+Tauri 目前不提供自动创建 Android 版本的方法，
+这必须利用 [Google Play Developer API]，
+但这是一个正在进行的工作。
+
+[official documentation]: https://developer.android.com/distribute
+[Play Console]: https://play.google.com/console/developers
+[code signing]: /zh-cn/distribute/sign/android/
+[release checklist]: https://play.google.com/console/about/guides/releasewithconfidence/
+[`tauri.conf.json > version`]: /zh-cn/reference/config/#version
+[`tauri.conf.json > bundle > android > versionCode`]: /zh-cn/reference/config/#versioncode
+[`tauri.conf.json > bundle > android > minSdkVersion`]: /zh-cn/reference/config/#minsdkversion
+[Google Play Developer API]: https://developers.google.com/android-publisher/api-ref/rest

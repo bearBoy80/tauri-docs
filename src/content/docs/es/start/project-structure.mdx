@@ -1,0 +1,58 @@
+---
+title: Estructura del Proyecto
+i18nReady: true
+---
+
+Un proyecto Tauri generalmente se compone de 2 partes, un proyecto Rust y un proyecto JavaScript (opcional),
+y típicamente la configuración se ve algo así:
+
+```
+.
+├── package.json
+├── index.html
+├── src/
+│   ├── main.js
+├── src-tauri/
+│   ├── Cargo.toml
+│   ├── Cargo.lock
+│   ├── build.rs
+│   ├── tauri.conf.json
+│   ├── src/
+│   │   ├── main.rs
+│   │   └── lib.rs
+│   ├── icons/
+│   │   ├── icon.png
+│   │   ├── icon.icns
+│   │   └── icon.ico
+│   └── capabilities/
+│       └── default.json
+```
+
+En este caso, el proyecto JavaScript está en el nivel superior, y el proyecto Rust está dentro de `src-tauri/`,
+el proyecto Rust es un [proyecto Cargo](https://doc.rust-lang.org/cargo/guide/project-layout.html) normal con algunos archivos adicionales:
+
+- `tauri.conf.json` es el archivo de configuración principal para Tauri, contiene todo, desde el identificador de la aplicación hasta la url del servidor de desarrollo,
+  este archivo también es un marcador para que la [CLI de Tauri](/es/reference/cli/) encuentre el proyecto Rust,
+  para aprender más sobre ello, ver [Configuración de Tauri](/es/develop/configuration-files/#tauri-config)
+- `capabilities/` es el directorio predeterminado desde donde Tauri lee los [archivos de capacidad](/es/security/capabilities/) (en resumen, necesitas permitir comandos aquí para usarlos en tu código JavaScript),
+  para aprender más sobre ello, ver [Seguridad](/es/security/)
+- `icons/` es el directorio de salida predeterminado del comando [`tauri icon`](/es/reference/cli/#icon), generalmente se hace referencia en `tauri.conf.json > bundle > icon` y se usa para los iconos de la aplicación
+- `build.rs` contiene `tauri_build::build()` que se usa para el sistema de construcción de tauri
+- `src/lib.rs` contiene el código Rust y el punto de entrada móvil (la función marcada con `#[cfg_attr(mobile, tauri::mobile_entry_point)]`),
+  la razón por la que no escribimos directamente en `main.rs` es porque compilamos tu aplicación como una biblioteca en compilaciones móviles y las cargamos a través de los frameworks de la plataforma
+- `src/main.rs` es el punto de entrada principal para el escritorio, y ejecutamos `app_lib::run()` en `main` para usar el mismo punto de entrada que el móvil,
+  así que para mantenerlo simple, no modifiques este archivo, modifica `lib.rs` en su lugar. Ten en cuenta que `app_lib` corresponde a `[lib.name]` en Cargo.toml.
+
+Tauri funciona de manera similar a un host web estático, y la forma en que construye es que primero compilarías tu proyecto JavaScript en archivos estáticos,
+y luego compilarías el proyecto Rust que agrupará esos archivos estáticos,
+así que la configuración del proyecto JavaScript es básicamente la misma que si fueras a construir un sitio web estático,
+para aprender más, ver [Configuración Frontend](/es/start/frontend/)
+
+Si quieres trabajar solo con código Rust, simplemente elimina todo lo demás y usa la carpeta `src-tauri/` como tu proyecto de nivel superior o como miembro de tu espacio de trabajo Rust
+
+## Próximos pasos
+
+- [Agregar y Configurar un Framework Frontend](/es/start/frontend/)
+- [Referencia de la Interfaz de Línea de Comandos (CLI) de Tauri](/es/reference/cli/)
+- [Aprende cómo desarrollar tu aplicación Tauri](/es/develop/)
+- [Descubre características adicionales para extender Tauri](/es/plugin/)

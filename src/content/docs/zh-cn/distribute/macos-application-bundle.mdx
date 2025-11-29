@@ -1,0 +1,222 @@
+---
+title: macOS 应用程序包
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+应用程序包是在 macOS 上执行的包格式。它是一个简单的目录，包含你的应用程序成功运行所需的一切，
+包括你的应用程序可执行文件、资源、Info.plist 文件和其他文件（如 macOS 框架）。
+
+要将你的应用打包为 macOS 应用程序包，你可以使用 Tauri CLI 并在 Mac 计算机中运行 `tauri build` 命令：
+
+<CommandTabs
+  npm="npm run tauri build -- --bundles app"
+  yarn="yarn tauri build --bundles app"
+  pnpm="pnpm tauri build --bundles app"
+  deno="deno task tauri build --bundles app"
+  bun="bun tauri build --bundles app"
+  cargo="cargo tauri build --bundles app"
+/>
+
+:::note
+
+macOS 和 Linux 上的 GUI 应用程序不会从你的 shell 配置文件 (`.bashrc`, `.bash_profile`, `.zshrc` 等) 继承 `$PATH`。查看 Tauri 的 [fix-path-env-rs](https://github.com/tauri-apps/fix-path-env-rs) crate 以解决此问题。
+
+:::
+
+## 文件结构
+
+macOS 应用程序包是一个具有以下结构的目录：
+
+```
+├── <productName>.app
+│   ├── Contents
+│   │   ├── Info.plist
+│   │   ├── ...来自 [`tauri.conf.json > bundle > macOS > files`] 的其他文件
+│   ├── MacOS
+│   │   ├── <app-name> (应用程序可执行文件)
+│   ├── Resources
+│   │   ├── icon.icns (应用程序图标)
+│   │   ├── ...来自 [`tauri.conf.json > bundle > resources`] 的资源
+│   ├── _CodeSignature (Apple 生成的代码签名信息)
+│   ├── Frameworks
+│   ├── PlugIns
+│   ├── SharedSupport
+```
+
+有关更多信息，请参阅 [官方文档](https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFBundles/BundleTypes/BundleTypes.html)。
+
+## 原生配置
+
+应用程序包由 `Info.plist` 文件配置，该文件包含具有你的应用标识和 macOS 读取的配置值的键值对。
+
+Tauri 会自动配置最重要的属性，例如你的应用二进制文件名称、版本、包标识符、最低系统版本等。
+
+要扩展配置文件，请在 `src-tauri` 文件夹中创建一个 `Info.plist` 文件并包含你想要的键值对：
+
+```xml title="src-tauri/Info.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Request camera access for WebRTC</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Request microphone access for WebRTC</string>
+</dict>
+</plist>
+```
+
+此 `Info.plist` 文件与 Tauri CLI 生成的值合并。覆盖默认值（如应用程序版本）时要小心，因为它们可能会与其他配置值冲突
+并引入意外行为。
+
+有关更多信息，请参阅 [官方 Info.plist 文档][official Info.plist documentation]。
+
+### Info.plist 本地化
+
+`Info.plist` 文件本身仅支持单一语言，通常是英语。如果你想支持多种语言，可以为每种其他语言创建 `InfoPlist.strings` 文件。每个文件都属于应用程序包中 `Resources` 目录中其自己的特定于语言的 `lproj` 目录。
+
+要自动打包这些文件，你可以利用 Tauri 的 [resources] 功能。为此，请按照以下模式在你的项目中创建文件结构：
+
+```
+├── src-tauri
+│   ├── tauri.conf.json
+│   ├── infoplist
+│   │   ├── de.lproj
+│   │   │   ├── InfoPlist.strings
+│   │   ├── fr.lproj
+│   │   │   ├── InfoPlist.strings
+```
+
+虽然 `infoplist` 目录名称可以自由选择，只要你在下面的资源配置中更新它，`lproj` 目录必须遵循 `<lang-code>.lproj` 命名，并且字符串目录文件必须命名为 `InfoPlist.strings`（大写 i 和 p）。对于大多数情况，语言代码应为遵循 [BCP 47] 的两个字母代码。
+
+对于上面显示的 `Info.plist` 示例，`de.lproj > InfoPlist.strings` 文件可能如下所示：
+
+```ini title="de.lproj/InfoPlist.strings"
+NSCameraUsageDescription = "Kamera Zugriff wird benötigt für WebRTC Funktionalität";
+NSMicrophoneUsageDescription = "Mikrofon Zugriff wird benötigt für WebRTC Funktionalität";
+```
+
+最后，通过使用上面提到的资源功能让 Tauri 获取这些文件：
+
+```json title="src-tauri/tauri.conf.json"
+{
+  "bundle": {
+    "resources": {
+      "infoplist/**": "./"
+    }
+  }
+}
+```
+
+## Entitlements (授权)
+
+授权是一个特殊的 Apple 配置键值对，充当授予你的应用特定功能的权利或特权，
+例如充当用户的默认电子邮件客户端和使用 App Sandbox 功能。
+
+授权在你的应用程序签名时应用。有关更多信息，请参阅 [代码签名文档][code signing documentation]。
+
+要定义你的应用程序所需的授权，你必须创建授权文件并配置 Tauri 使用它。
+
+1. 在 `src-tauri` 文件夹中创建一个 `Entitlements.plist` 文件并配置你的应用所需的键值对：
+
+```xml title="src-tauri/Entitlements.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+</dict>
+</plist>
+```
+
+2. 配置 Tauri 使用 Entitlements.plist 文件：
+
+```json title="tauri.conf.json" ins={4}
+{
+  "bundle": {
+    "macOS": {
+      "entitlements": "./Entitlements.plist"
+    }
+  }
+}
+```
+
+有关更多信息，请参阅 [官方文档](https://developer.apple.com/documentation/bundleresources/entitlements)。
+
+## 最低系统版本
+
+默认情况下，你的 Tauri 应用程序支持 macOS 10.13 及更高版本。如果你使用的 API 需要更新的 macOS 系统，并且想在你的应用程序包中强制执行该要求，
+你可以配置 [`tauri.conf.json > bundle > macOS > minimumSystemVersion`] 值：
+
+```json title="tauri.conf.json" ins={4}
+{
+  "bundle": {
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    }
+  }
+}
+```
+
+## 包含 macOS 框架
+
+如果你的应用程序需要额外的 macOS 框架才能运行，你可以在 [`tauri.conf.json > bundle > macOS > frameworks`] 配置中列出它们。
+框架列表可以包含系统或自定义框架和 dylib 文件。
+
+```json title="tauri.conf.json" ins={4-8}
+{
+  "bundle": {
+    "macOS": {
+      "frameworks": [
+        "CoreAudio",
+        "./libs/libmsodbcsql.18.dylib",
+        "./frameworks/MyApp.framework"
+      ]
+    }
+  }
+}
+```
+
+:::note
+
+- 要引用系统框架，你可以只使用其名称（不带 .framework 扩展名）而不是绝对路径
+- 系统框架必须存在于 `$HOME/Library/Frameworks`、`/Library/Frameworks/` 或 `/Network/Library/Frameworks/` 中
+- 要引用本地框架和 dylib 文件，你必须使用框架的完整路径，相对于 `src-tauri` 目录
+
+:::
+
+## 添加自定义文件
+
+你可以使用 [`tauri.conf.json > bundle > macOS > files`] 配置将自定义文件添加到你的应用程序包中，
+它将目标路径映射到相对于 `tauri.conf.json` 文件的源路径。
+这些文件将添加到 `<product-name>.app/Contents` 文件夹中。
+
+```json title="tauri.conf.json" ins={4-7}
+{
+  "bundle": {
+    "macOS": {
+      "files": {
+        "embedded.provisionprofile": "./profile-name.provisionprofile",
+        "SharedSupport/docs.md": "./docs/index.md"
+      }
+    }
+  }
+}
+```
+
+在上面的示例中，`profile-name.provisionprofile` 文件被复制到 `<product-name>.app/Contents/embedded.provisionprofile`
+而 `docs/index.md` 文件被复制到 `<product-name>.app/Contents/SharedSupport/docs.md`。
+
+[`tauri.conf.json > bundle > macOS > frameworks`]: /zh-cn/reference/config/#frameworks-1
+[`tauri.conf.json > bundle > macOS > files`]: /zh-cn/reference/config/#files-2
+[`tauri.conf.json > bundle > resources`]: /zh-cn/reference/config/#resources
+[official Info.plist documentation]: https://developer.apple.com/documentation/bundleresources/information_property_list
+[code signing documentation]: /zh-cn/distribute/sign/macos/
+[`tauri.conf.json > bundle > macOS > minimumSystemVersion`]: /zh-cn/reference/config/#minimumsystemversion
+[resources]: /zh-cn/develop/resources/
+[BCP 47]: https://www.rfc-editor.org/rfc/bcp/bcp47.txt

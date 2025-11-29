@@ -1,0 +1,245 @@
+---
+title: 分发
+sidebar:
+  order: 0
+  label: 概览
+i18nReady: true
+---
+
+import { CardGrid, LinkCard, LinkButton } from '@astrojs/starlight/components';
+import CommandTabs from '@components/CommandTabs.astro';
+
+Tauri 提供了将你的应用程序分发到平台应用商店或作为特定于平台的安装程序所需的工具。
+
+## 构建
+
+Tauri 通过其 CLI 的 `build`、`android build` 和 `ios build` 命令直接构建你的应用程序。
+
+<CommandTabs
+  npm="npm run tauri build"
+  yarn="yarn tauri build"
+  pnpm="pnpm tauri build"
+  deno="deno task tauri build"
+  bun="bun tauri build"
+  cargo="cargo tauri build"
+/>
+
+请参阅 [分发](#分发) 部分，了解有关每个包的可用配置选项以及如何将其分发给用户的更多信息。
+
+:::note
+大多数平台都需要代码签名。有关更多信息，请参阅 [签名](#签名) 部分。
+:::
+
+### 打包
+
+默认情况下，`build` 命令会自动为配置的格式打包你的应用程序。
+
+如果你需要进一步自定义平台包的生成方式，可以将构建和打包步骤分开：
+
+<CommandTabs
+  npm="npm run tauri build -- --no-bundle
+# 为 macOS App Store 以外的分发打包
+npm run tauri bundle -- --bundles app,dmg
+# 为 App Store 分发打包
+npm run tauri bundle -- --bundles app --config src-tauri/tauri.appstore.conf.json"
+  yarn="yarn tauri build --no-bundle
+# 为 macOS App Store 以外的分发打包
+yarn tauri bundle --bundles app,dmg
+# 为 App Store 分发打包
+yarn tauri bundle --bundles app --config src-tauri/tauri.appstore.conf.json"
+  pnpm="pnpm tauri build --no-bundle
+# 为 macOS App Store 以外的分发打包
+pnpm tauri bundle --bundles app,dmg
+# 为 App Store 分发打包
+pnpm tauri bundle --bundles app --config src-tauri/tauri.appstore.conf.json"
+  deno="deno task tauri build --no-bundle
+# 为 macOS App Store 以外的分发打包
+deno task tauri bundle --bundles app,dmg
+# 为 App Store 分发打包
+deno task tauri bundle --bundles app --config src-tauri/tauri.appstore.conf.json"
+  bun="bun tauri build --no-bundle
+# 为 macOS App Store 以外的分发打包
+bun tauri bundle --bundles app,dmg
+# 为 App Store 分发打包
+bun tauri bundle --bundles app --config src-tauri/tauri.appstore.conf.json"
+  cargo="cargo tauri build --no-bundle
+# 为 macOS App Store 以外的分发打包
+cargo tauri bundle --bundles app,dmg
+# 为 App Store 分发打包
+cargo tauri bundle --bundles app --config src-tauri/tauri.appstore.conf.json"
+/>
+
+## 版本控制
+
+你的应用程序版本可以在 [`tauri.conf.json > version`] 配置选项中定义，这是管理应用程序版本的推荐方法。如果未设置该配置值，Tauri 将使用 `src-tauri/Cargo.toml` 文件中的 `package > version` 值。
+
+:::note
+某些平台对版本字符串有一些限制和特殊情况。
+有关更多信息，请参阅各个分发文档页面。
+:::
+
+## 签名
+
+代码签名通过对应用程序的可执行文件和包应用数字签名来增强应用程序的安全性，从而验证你作为应用程序提供者的身份。
+
+大多数平台都需要签名。有关更多信息，请参阅每个平台的文档。
+
+<CardGrid>
+  <LinkCard
+    title="macOS"
+    href="/zh-cn/distribute/sign/macos/"
+    description="macOS 应用程序的代码签名和公证"
+  />
+  <LinkCard
+    title="Windows"
+    href="/zh-cn/distribute/sign/windows/"
+    description="Windows 安装程序的代码签名"
+  />
+  <LinkCard
+    title="Linux"
+    href="/zh-cn/distribute/sign/linux/"
+    description="Linux 包的代码签名"
+  />
+  <LinkCard
+    title="Android"
+    href="/zh-cn/distribute/sign/android/"
+    description="Android 的代码签名"
+  />
+  <LinkCard
+    title="iOS"
+    href="/zh-cn/distribute/sign/ios/"
+    description="iOS 的代码签名"
+  />
+
+</CardGrid>
+
+## 分发
+
+了解如何为每个平台分发你的应用程序。
+
+### Linux
+
+对于 Linux，你可以使用 Debian 包、Snap、AppImage、Flatpak、RPM 或 Arch User Repository (AUR) 格式分发你的应用程序。
+
+<CardGrid>
+  <LinkCard
+    title="AppImage"
+    href="/zh-cn/distribute/appimage/"
+    description="作为 AppImage 分发"
+  />
+  <LinkCard
+    title="AUR"
+    href="/zh-cn/distribute/aur/"
+    description="发布到 Arch User Repository"
+  />
+  <LinkCard
+    title="Debian"
+    href="/zh-cn/distribute/debian/"
+    description="作为 Debian 包分发"
+  />
+  {/*  <LinkCard
+    title="Flathub"
+    href="/distribute/flatpak/"
+    description="Distribute as a Flatpak"
+  /> */}
+  <LinkCard
+    title="RPM"
+    href="/zh-cn/distribute/rpm/"
+    description="作为 RPM 包分发"
+  />
+  <LinkCard
+    title="Snapcraft"
+    href="/zh-cn/distribute/snapcraft/"
+    description="在 Snapcraft.io 上分发"
+  />
+</CardGrid>
+
+<LinkButton href="/zh-cn/distribute/sign/linux/">代码签名</LinkButton>
+
+### macOS
+
+对于 macOS，你可以直接将应用程序分发到 App Store，或者发布 DMG 安装程序供直接下载。
+这两种方法都需要代码签名，而在 App Store 之外分发还需要公证。
+
+<CardGrid>
+  <LinkCard
+    title="App Bundle"
+    href="/zh-cn/distribute/macos-application-bundle/"
+    description="作为 App Bundle 分发 macOS 应用程序"
+  />
+  <LinkCard
+    title="App Store"
+    href="/zh-cn/distribute/app-store/"
+    description="将 iOS 和 macOS 应用程序分发到 App Store"
+  />
+  <LinkCard
+    title="DMG"
+    href="/zh-cn/distribute/dmg/"
+    description="作为 Apple Disk Image 分发 macOS 应用程序"
+  />
+</CardGrid>
+
+<LinkButton href="/zh-cn/distribute/sign/macos/">
+  代码签名和公证
+</LinkButton>
+
+### Windows
+
+了解如何分发到 Microsoft Store 或配置 Windows 安装程序。
+
+<CardGrid>
+  <LinkCard
+    title="Microsoft Store"
+    href="/zh-cn/distribute/microsoft-store/"
+    description="将 Windows 应用程序分发到 Microsoft Store"
+  />
+  <LinkCard
+    title="Windows Installer"
+    href="/zh-cn/distribute/windows-installer/"
+    description="分发 Windows 安装程序"
+  />
+</CardGrid>
+
+<LinkButton href="/zh-cn/distribute/sign/windows/">代码签名</LinkButton>
+
+### Android
+
+将你的 Android 应用程序分发到 Google Play。
+
+<CardGrid>
+  <LinkCard
+    title="Google Play"
+    href="/zh-cn/distribute/google-play/"
+    description="将 Android 应用程序分发到 Google Play"
+  />
+</CardGrid>
+
+<LinkButton href="/zh-cn/distribute/sign/android/">代码签名</LinkButton>
+
+### iOS
+
+了解如何将你的应用程序上传到 App Store。
+
+<CardGrid>
+  <LinkCard
+    title="App Store"
+    href="/zh-cn/distribute/app-store/"
+    description="将 iOS 和 macOS 应用程序分发到 App Store"
+  />
+</CardGrid>
+
+<LinkButton href="/zh-cn/distribute/sign/ios/">代码签名</LinkButton>
+
+### 云服务
+
+将你的应用程序分发到全球分发应用程序并开箱即用地支持自动更新的云服务。
+
+<CardGrid>
+  <LinkCard
+    title="CrabNebula Cloud"
+    href="/zh-cn/distribute/crabnebula-cloud/"
+    description="使用 CrabNebula 分发你的应用程序"
+  />
+</CardGrid>
+
+[`tauri.conf.json > version`]: /zh-cn/reference/config/#version
