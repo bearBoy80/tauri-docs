@@ -1,0 +1,61 @@
+---
+title: 环境变量
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+这是 tauri 核心 crate 和 tauri CLI 使用的所有环境变量的文档。
+
+## Tauri CLI
+
+这些环境变量是 CLI 的输入，可能具有等效的 CLI 标志。
+
+:::tip[环境变量优先级]
+
+如果同时使用环境变量和 CLI 标志，则 CLI 标志具有优先级。
+
+:::
+
+- `CI` — 如果设置，CLI 将在 CI 模式下运行，不需要任何用户交互。
+- `TAURI_CLI_CONFIG_DEPTH` — 遍历和查找 tauri 配置文件的层级数。
+- `TAURI_CLI_PORT` — 用于 CLI 内置开发服务器的端口。
+- `TAURI_CLI_WATCHER_IGNORE_FILENAME` — `.gitignore` 风格文件的名称，用于控制 CLI 在 `dev` 命令中应监视哪些文件。CLI 将在每个目录中查找此文件名。
+- `TAURI_CLI_NO_DEV_SERVER_WAIT` — 跳过等待前端开发服务器启动再构建 tauri 应用程序。
+- `TAURI_LINUX_AYATANA_APPINDICATOR` — 将此变量设置为 `true` 或 `1` 以强制在 Linux 上使用 `libayatana-appindicator` 作为系统托盘。
+- `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` — 指定打包器的 WiX `FipsCompliant` 选项。
+- `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR` — 指定 GitHub 镜像以下载 tauri 打包器使用的文件和工具。
+- `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE` — 指定 GitHub 镜像模板以下载 tauri 打包器使用的文件和工具，例如：`https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>`。
+- `TAURI_SKIP_SIDECAR_SIGNATURE_CHECK` — 跳过签署 sidecar。
+- `TAURI_SIGNING_PRIVATE_KEY` — 用于签署应用包的私钥，可以是字符串或文件路径。
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — 签署私钥密码，参见 `TAURI_SIGNING_PRIVATE_KEY`。
+- `TAURI_SIGNING_RPM_KEY` — 用于签署 RPM 包的私有 GPG 密钥，导出为其 ASCII 铠装格式。
+- `TAURI_SIGNING_RPM_KEY_PASSPHRASE` — `TAURI_SIGNING_RPM_KEY` 的 GPG 密钥密码（如果需要）。
+- `TAURI_WINDOWS_SIGNTOOL_PATH` — 指定用于在 Windows 上对应用程序进行代码签名的 `signtool.exe` 的路径。
+- `APPLE_CERTIFICATE` — 用于代码签名的 `.p12` 证书的 Base64 编码。要获取此值，请运行 `openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt`。
+- `APPLE_CERTIFICATE_PASSWORD` — 你用于导出证书的密码。
+- `APPLE_ID` — 用于公证应用程序的 Apple ID。如果提供了此环境变量，还必须设置 `APPLE_PASSWORD` 和 `APPLE_TEAM_ID`。或者，可以使用 `APPLE_API_KEY` 和 `APPLE_API_ISSUER` 进行身份验证。
+- `APPLE_PASSWORD` — 用于验证应用程序公证的 Apple 密码。如果指定了 `APPLE_ID`，则为必需。可以使用 [应用专用密码](https://support.apple.com/en-ca/HT204397)。除了以纯文本形式输入密码外，还可以使用 '@keychain:' 或 '@env:' 前缀后跟钥匙串密码项名称或环境变量名称来指定。
+- `APPLE_TEAM_ID`: 开发人员团队 ID。要查找你的团队 ID，请转到 Apple Developer 网站上的 [帐户](https://developer.apple.com/account) 页面，然后查看你的会员详细信息。
+- `APPLE_API_KEY` — 使用 JWT 进行公证身份验证的 `APPLE_ID` 和 `APPLE_PASSWORD` 的替代方案。也是允许自动 iOS 证书和配置文件管理的选项。
+  - 有关更多信息，请参阅 [创建 API 密钥](https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api)。
+- `API_PRIVATE_KEYS_DIR` — 指定你的 AuthKey 文件所在的目录。参见 `APPLE_API_KEY`。
+- `APPLE_API_ISSUER` — 发行者 ID。如果指定了 `APPLE_API_KEY`，则为必需。
+- `APPLE_API_KEY_PATH` — API 密钥 `.p8` 文件的路径。如果未指定，对于 macOS 应用程序，打包器会按顺序搜索以下目录以查找名称为 'AuthKey\_\<api_key>.p8' 的私钥文件：'./private_keys'、'~/private_keys'、'~/.private_keys' 和 '~/.appstoreconnect/private_keys'。**对于 iOS，此变量是必需的**。
+- `APPLE_SIGNING_IDENTITY` — 用于代码签名的身份。覆盖 `tauri.conf.json > bundle > macOS > signingIdentity`。如果均未设置，则在提供时从 `APPLE_CERTIFICATE` 推断。
+- `APPLE_PROVIDER_SHORT_NAME` — 如果你的 Apple ID 连接到多个团队，你必须指定要用于公证你的应用程序的团队的提供商简称。覆盖 `tauri.conf.json > bundle > macOS > providerShortName`。
+- `APPLE_DEVELOPMENT_TEAM` — 用于在 iOS 上进行代码签名的团队 ID。覆盖 `tauri.conf.json > bundle > iOS > developmentTeam`。可以在 https://developer.apple.com/account#MembershipDetailsCard 中找到。
+- `TAURI_WEBVIEW_AUTOMATION` — 启用 webview 自动化（仅限 Linux）。
+- `TAURI_ANDROID_PROJECT_PATH` — tauri android 项目的路径，通常为 `<project>/src-tauri/gen/android`。
+- `TAURI_IOS_PROJECT_PATH` — tauri iOS 项目的路径，通常为 `<project>/src-tauri/gen/ios`。
+
+## Tauri CLI 钩子命令
+
+为每个钩子命令（`beforeDevCommand`、`beforeBuildCommand` 等）设置这些环境变量，这对于有条件地构建前端或执行特定操作可能很有用。
+
+- `TAURI_ENV_DEBUG` — 对于 `dev` 命令或 `build --debug` 为 `true`，否则为 `false`。
+- `TAURI_ENV_TARGET_TRIPLE` — CLI 正在构建的目标三元组。
+- `TAURI_ENV_ARCH` — 目标架构，`x86_64`、`aarch64` 等。
+- `TAURI_ENV_PLATFORM` — 目标平台，`windows`、`darwin`、`linux` 等。
+- `TAURI_ENV_PLATFORM_VERSION` — 构建平台版本
+- `TAURI_ENV_FAMILY` — 目标平台系列 `unix` 或 `windows`。

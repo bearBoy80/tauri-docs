@@ -1,0 +1,319 @@
+---
+title: ダイアログ
+description: ファイルを開いたり保存したりするためのネイティブシステムダイアログと、メッセージダイアログ。
+i18nReady: true
+tableOfContents:
+  maxHeadingLevel: 4
+plugin: dialog
+---
+
+import PluginLinks from '@components/PluginLinks.astro';
+import Compatibility from '@components/plugins/Compatibility.astro';
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import CommandTabs from '@components/CommandTabs.astro';
+import PluginPermissions from '@components/PluginPermissions.astro';
+
+<PluginLinks plugin={frontmatter.plugin} />
+
+ファイルを開いたり保存したりするためのネイティブシステムダイアログと、メッセージダイアログ。
+
+## サポートされているプラットフォーム
+
+<Compatibility plugin={frontmatter.plugin} />
+
+## セットアップ
+
+ダイアログプラグインをインストールして開始します。
+
+<Tabs>
+    <TabItem label="自動">
+
+        プロジェクトのパッケージマネージャーを使用して依存関係を追加します。
+
+        <CommandTabs npm="npm run tauri add dialog"
+                    yarn="yarn run tauri add dialog"
+                    pnpm="pnpm tauri add dialog"
+                    deno="deno task tauri add dialog"
+                    bun="bun tauri add dialog"
+                    cargo="cargo tauri add dialog" />
+
+    </TabItem>
+    <TabItem label="手動">
+        <Steps>
+
+            1. `src-tauri` フォルダで次のコマンドを実行して、`Cargo.toml` のプロジェクトの依存関係にプラグインを追加します。
+
+                ```sh frame=none
+                cargo add tauri-plugin-dialog
+                ```
+
+            2.  `lib.rs` を変更してプラグインを初期化します。
+
+                ```rust title="src-tauri/src/lib.rs" ins={4}
+                #[cfg_attr(mobile, tauri::mobile_entry_point)]
+                pub fn run() {
+                    tauri::Builder::default()
+                        .plugin(tauri_plugin_dialog::init())
+                        .run(tauri::generate_context!())
+                        .expect("error while running tauri application");
+                }
+                ```
+
+            3.  JavaScript でダイアログを作成したい場合は、npm パッケージもインストールします。
+
+                <CommandTabs
+                    npm="npm install @tauri-apps/plugin-dialog"
+                    yarn="yarn add @tauri-apps/plugin-dialog"
+                    pnpm="pnpm add @tauri-apps/plugin-dialog"
+                    deno="deno add npm:@tauri-apps/plugin-dialog"
+                    bun="bun add @tauri-apps/plugin-dialog"
+                />
+
+        </Steps>
+    </TabItem>
+
+</Tabs>
+
+## 使用法
+
+ダイアログプラグインは、JavaScript と Rust の両方で使用できます。使用方法は次のとおりです。
+
+JavaScript:
+
+- [Yes/No ダイアログの作成](#yesno-ダイアログの作成)
+- [Ok/Cancel ダイアログの作成](#okcancel-ダイアログの作成)
+- [メッセージダイアログの作成](#メッセージダイアログの作成)
+- [ファイル選択ダイアログを開く](#ファイル選択ダイアログを開く)
+- [ファイル保存ダイアログ](#ファイル保存ダイアログ)
+
+Rust:
+
+- [質問ダイアログの構築](#質問ダイアログの構築)
+- [メッセージダイアログの構築](#メッセージダイアログの構築)
+- [ファイル選択ダイアログの構築](#ファイル選択ダイアログの構築)
+
+:::note
+ファイルダイアログ API は、Linux、Windows、macOS でファイルシステムパスを返します。
+
+iOS では、`file://<path>` URI が返されます。
+
+Android では、[コンテンツ URI][content URIs] が返されます。
+
+[ファイルシステムプラグイン][filesystem plugin] は、そのままの状態で任意のパス形式で動作します。
+:::
+
+### JavaScript
+
+JavaScript API リファレンスで [すべてのダイアログオプション](/reference/javascript/dialog/) を参照してください。
+
+#### Yes/No ダイアログの作成
+
+`Yes` と `No` ボタンを持つ質問ダイアログを表示します。
+
+```javascript
+import { ask } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true` を使用する場合、以下を使用できます
+// const { ask } = window.__TAURI__.dialog;
+
+// Yes/No ダイアログを作成
+const answer = await ask('This action cannot be reverted. Are you sure?', {
+  title: 'Tauri',
+  kind: 'warning',
+});
+
+console.log(answer);
+// コンソールにブール値を出力します
+```
+
+#### Ok/Cancel ダイアログの作成
+
+`Ok` と `Cancel` ボタンを持つ質問ダイアログを表示します。
+
+```javascript
+import { confirm } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true` を使用する場合、以下を使用できます
+// const { confirm } = window.__TAURI__.dialog;
+
+// 確認用 Ok/Cancel ダイアログを作成
+const confirmation = await confirm(
+  'This action cannot be reverted. Are you sure?',
+  { title: 'Tauri', kind: 'warning' }
+);
+
+console.log(confirmation);
+// コンソールにブール値を出力します
+```
+
+#### メッセージダイアログの作成
+
+`Ok` ボタンを持つメッセージダイアログを表示します。ユーザーがダイアログを閉じると `false` が返されることに注意してください。
+
+```javascript
+import { message } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true` を使用する場合、以下を使用できます
+// const { message } = window.__TAURI__.dialog;
+
+// メッセージを表示
+await message('File not found', { title: 'Tauri', kind: 'error' });
+```
+
+#### ファイル選択ダイアログを開く
+
+ファイル/ディレクトリ選択ダイアログを開きます。
+
+`multiple` オプションはダイアログが複数選択を許可するかどうかを制御し、`directory` はディレクトリ選択かどうかを制御します。
+
+```javascript
+import { open } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true` を使用する場合、以下を使用できます
+// const { open } = window.__TAURI__.dialog;
+
+// ダイアログを開く
+const file = await open({
+  multiple: false,
+  directory: false,
+});
+console.log(file);
+// ファイルパスまたは URI を出力します
+```
+
+#### ファイル保存ダイアログ
+
+ファイル/ディレクトリ保存ダイアログを開きます。
+
+```javascript
+import { save } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true` を使用する場合、以下を使用できます
+// const { save } = window.__TAURI__.dialog;
+
+// 拡張子 .png または .jpeg で 'My Filter' を保存するように促します
+const path = await save({
+  filters: [
+    {
+      name: 'My Filter',
+      extensions: ['png', 'jpeg'],
+    },
+  ],
+});
+console.log(path);
+// 選択されたパスを出力します
+```
+
+---
+
+### Rust
+
+利用可能なすべてのオプションについては、[Rust API リファレンス](https://docs.rs/tauri-plugin-dialog/) を参照してください。
+
+#### 質問ダイアログの構築
+
+`Absolutely` と `Totally` ボタンを持つ質問ダイアログを表示します。
+
+```rust
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+
+let answer = app.dialog()
+        .message("Tauri is Awesome")
+        .title("Tauri is Awesome")
+        .buttons(MessageDialogButtons::OkCancelCustom("Absolutely", "Totally"))
+        .blocking_show();
+```
+
+非ブロッキング操作が必要な場合は、代わりに `show()` を使用できます。
+
+```rust
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+
+app.dialog()
+    .message("Tauri is Awesome")
+    .title("Tauri is Awesome")
+   .buttons(MessageDialogButtons::OkCancelCustom("Absolutely", "Totally"))
+    .show(|result| match result {
+        true => // 何かをする,
+        false =>// 何かをする,
+    });
+```
+
+#### メッセージダイアログの構築
+
+`Ok` ボタンを持つメッセージダイアログを表示します。ユーザーがダイアログを閉じると `false` が返されることに注意してください。
+
+```rust
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+
+let ans = app.dialog()
+    .message("File not found")
+    .kind(MessageDialogKind::Error)
+    .title("Warning")
+    .blocking_show();
+```
+
+非ブロッキング操作が必要な場合は、代わりに `show()` を使用できます。
+
+```rust
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+
+app.dialog()
+    .message("Tauri is Awesome")
+    .kind(MessageDialogKind::Info)
+    .title("Information")
+    .buttons(MessageDialogButtons::OkCustom("Absolutely"))
+    .show(|result| match result {
+        true => // 何かをする,
+        false => // 何かをする,
+    });
+```
+
+#### ファイル選択ダイアログの構築
+
+#### ファイルを選択
+
+```rust
+use tauri_plugin_dialog::DialogExt;
+
+let file_path = app.dialog().file().blocking_pick_file();
+// file_path `Option` を返すか、ユーザーがダイアログを閉じた場合は `None` を返します
+```
+
+非ブロッキング操作が必要な場合は、代わりに `pick_file()` を使用できます。
+
+```rust
+use tauri_plugin_dialog::DialogExt;
+
+app.dialog().file().pick_file(|file_path| {
+    // file_path `Option` を返すか、ユーザーがダイアログを閉じた場合は `None` を返します
+    })
+```
+
+#### ファイルを保存
+
+```rust
+use tauri_plugin_dialog::DialogExt;
+
+let file_path = app
+    .dialog()
+    .file()
+    .add_filter("My Filter", &["png", "jpeg"])
+    .blocking_save_file();
+    // ここでオプションのファイルパスを使って何かをする
+    // ユーザーがダイアログを閉じた場合、ファイルパスは `None` です
+```
+
+または、代替として：
+
+```rust
+use tauri_plugin_dialog::DialogExt;
+
+app.dialog()
+    .file()
+    .add_filter("My Filter", &["png", "jpeg"])
+    .pick_file(|file_path| {
+        // file_path `Option` を返すか、ユーザーがダイアログを閉じた場合は `None` を返します
+    });
+```
+
+<PluginPermissions plugin={frontmatter.plugin} />
+
+[content URIs]: https://developer.android.com/guide/topics/providers/content-provider-basics
+[filesystem plugin]: /plugin/file-system/

@@ -1,0 +1,92 @@
+---
+title: Archivos de configuración
+i18nReady: true
+---
+
+Puedes personalizar tu aplicación Tauri con varios archivos de configuración.
+
+## Configuración de Tauri
+
+El archivo de configuración principal de Tauri se encuentra en `src-tauri/tauri.conf.json`.
+Aquí puedes configurar el nombre de la aplicación, la versión, los iconos, el tamaño de la ventana y más.
+
+{/* TODO: Link to complete configuration reference */}
+
+## `Cargo.toml`
+
+Cargo es el administrador de paquetes de Rust. Sirve como herramienta para administrar dependencias de Rust, construir tu proyecto, ejecutar pruebas y más.
+
+En un proyecto Tauri, `src-tauri/Cargo.toml` es el archivo de manifiesto principal para configurar dependencias de Rust y metadatos del proyecto.
+
+### `[package]`
+
+La sección `[package]` define metadatos básicos sobre tu aplicación.
+
+```toml title="src-tauri/Cargo.toml"
+[package]
+name = "my-app"
+version = "0.1.0"
+description = "Una aplicación Tauri"
+authors = ["Tu Nombre <tu.email@example.com>"]
+edition = "2021"
+rust-version = "1.77.2"
+```
+
+- `name`: El nombre de tu aplicación. Debe ser único si publicas en crates.io.
+- `version`: La versión de tu aplicación.
+- `description`: Una breve descripción de tu aplicación.
+- `authors`: Una lista de los autores de la aplicación.
+- `edition`: La edición de Rust utilizada. Tauri requiere al menos la edición 2021.
+- `rust-version`: La versión mínima soportada de Rust.
+
+### `[dependencies]`
+
+La sección `[dependencies]` es donde enumeras los crates (paquetes) de Rust de los que depende tu aplicación.
+
+```toml title="src-tauri/Cargo.toml"
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+```
+
+### `[build-dependencies]`
+
+Esta sección enumera las dependencias necesarias solo para el proceso de construcción, como el ayudante de construcción de Tauri.
+
+```toml title="src-tauri/Cargo.toml"
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+```
+
+### `[profile]`
+
+Los perfiles te permiten personalizar la configuración del compilador para diferentes escenarios, como desarrollo o producción.
+
+```toml title="src-tauri/Cargo.toml"
+[profile.dev]
+incremental = true # Compilar el binario en pasos más pequeños.
+
+[profile.release]
+codegen-units = 1 # Permite a LLVM realizar una mejor optimización.
+lto = true # Habilita optimizaciones en tiempo de enlace.
+opt-level = "s" # Prioriza tamaño binario pequeño. Usa "z" para un tamaño aún más pequeño.
+panic = "abort" # Optimización de rendimiento superior y binario más pequeño al deshabilitar el desenrollado de pánico.
+strip = true # Elimina símbolos del binario.
+trim-paths = "all" # Elimina información privilegiada del binario.
+```
+
+## `tauri-build`
+
+El crate `tauri-build` se utiliza en `src-tauri/build.rs` para aplicar macros en tiempo de compilación y configurar el proceso de construcción.
+
+```rust title="src-tauri/build.rs"
+fn main() {
+  tauri_build::build()
+}
+```
+
+Puedes configurar el proceso de construcción pasando atributos a la función `build`.
+
+{/* TODO: Add link to tauri-build documentation */}

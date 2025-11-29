@@ -1,0 +1,463 @@
+---
+title: ディープリンク
+description: Tauri アプリケーションを URL のデフォルトハンドラとして設定します。
+plugin: deep-link
+i18nReady: true
+---
+
+import PluginLinks from '@components/PluginLinks.astro';
+import Compatibility from '@components/plugins/Compatibility.astro';
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import CommandTabs from '@components/CommandTabs.astro';
+import PluginPermissions from '@components/PluginPermissions.astro';
+
+<PluginLinks plugin={frontmatter.plugin} />
+
+Tauri アプリケーションを URL のデフォルトハンドラとして設定します。
+
+## サポートされているプラットフォーム
+
+<Compatibility plugin={frontmatter.plugin} />
+
+## セットアップ
+
+ディープリンクプラグインをインストールして開始します。
+
+<Tabs>
+  <TabItem label="自動">
+
+    プロジェクトのパッケージマネージャーを使用して依存関係を追加します。
+
+    {' '}
+
+    <CommandTabs
+      npm="npm run tauri add deep-link"
+      yarn="yarn run tauri add deep-link"
+      pnpm="pnpm tauri add deep-link"
+      deno="deno task tauri add deep-link"
+      bun="bun tauri add deep-link"
+      cargo="cargo tauri add deep-link"
+    />
+
+  </TabItem>
+  <TabItem label="手動">
+    <Steps>
+
+      1.  `src-tauri` フォルダで次のコマンドを実行して、`Cargo.toml` のプロジェクトの依存関係にプラグインを追加します。
+
+          ```sh frame=none
+          cargo add tauri-plugin-deep-link@2.0.0
+          ```
+
+      2.  `lib.rs` を変更してプラグインを初期化します。
+
+          ```rust title="src-tauri/src/lib.rs" ins={4}
+          #[cfg_attr(mobile, tauri::mobile_entry_point)]
+          pub fn run() {
+              tauri::Builder::default()
+                  .plugin(tauri_plugin_deep_link::init())
+                  .run(tauri::generate_context!())
+                  .expect("error while running tauri application");
+          }
+          ```
+
+      3.  お好みの JavaScript パッケージマネージャーを使用して、JavaScript ゲストバインディングをインストールします。
+
+          <CommandTabs
+              npm="npm install @tauri-apps/plugin-deep-link"
+              yarn="yarn add @tauri-apps/plugin-deep-link"
+              pnpm="pnpm add @tauri-apps/plugin-deep-link"
+              deno="deno add npm:@tauri-apps/plugin-deep-link"
+              bun="bun add @tauri-apps/plugin-deep-link"
+          />
+
+    </Steps>
+
+  </TabItem>
+</Tabs>
+
+## 設定
+
+### Android
+
+Android でリンクからアプリを開く方法は 2 つあります。
+
+1. **アプリリンク (http/https + ホスト、検証済み)**
+   [アプリリンク](https://developer.android.com/training/app-links#android-app-links) の場合、所定の形式でテキスト応答を返す `.well-known/assetlinks.json` エンドポイントを持つサーバーが必要です。
+
+```json title=".well-known/assetlinks.json"
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "$APP_BUNDLE_ID",
+      "sha256_cert_fingerprints": [
+        $CERT_FINGERPRINT
+      ]
+    }
+  }
+]
+```
+
+ここで、`$APP_BUNDLE_ID` は [`tauri.conf.json > identifier`] で定義された値で `-` を `_` に置き換えたものであり、
+`$CERT_FINGERPRINT` はアプリの署名証明書の SHA256 フィンガープリントのリストです。
+詳細については、[Android アプリリンクの検証](https://developer.android.com/training/app-links/verify-android-applinks#web-assoc) を参照してください。
+
+2. **カスタム URI スキーム (ホスト不要、検証なし)**
+   `myapp://...` のような URI の場合、ファイルをホストせずにカスタムスキームを宣言できます。モバイル設定で `scheme` フィールドを使用し、`host` を省略します。
+
+### iOS
+
+iOS でリンクからアプリを開く方法は 2 つあります。
+
+1. **ユニバーサルリンク (https + ホスト、検証済み)**
+   [ユニバーサルリンク][universal links] の場合、所定の形式で JSON 応答を返す `.well-known/apple-app-site-association` エンドポイントを持つサーバーが必要です。
+
+```json title=".well-known/apple-app-site-association"
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["$DEVELOPMENT_TEAM_ID.$APP_BUNDLE_ID"],
+        "components": [
+          {
+            "/": "/open/*",
+            "comment": "Matches any URL whose path starts with /open/"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+:::note
+応答の `Content-Type` ヘッダーは `application/json` でなければなりません。
+
+`.well-known/apple-app-site-association` エンドポイントは HTTPS 経由で提供される必要があります。
+localhost をテストするには、自己署名 TLS 証明書を使用して iOS シミュレーターにインストールするか、[ngrok] のようなサービスを使用できます。
+:::
+
+ここで、`$DEVELOPMENT_TEAM_ID` は `tauri.conf.json > tauri > bundle > iOS > developmentTeam` または `TAURI_APPLE_DEVELOPMENT_TEAM` 環境変数で定義された値であり、`$APP_BUNDLE_ID` は [`tauri.conf.json > identifier`] で定義された値です。
+
+ドメインがアプリの関連付けを公開するように適切に設定されているかを確認するには、次のコマンドを実行します（`<host>` を実際のホストに置き換えてください）。
+
+```sh
+curl -v https://app-site-association.cdn-apple.com/a/v1/<host>
+```
+
+詳細については、[applinks.details](https://developer.apple.com/documentation/bundleresources/applinks/details-swift.dictionary) を参照してください。
+
+2. **カスタム URI スキーム (ホスト不要、検証なし)**
+   `myapp://...` のような URI の場合、`"appLink": false` でモバイル設定の下にカスタムスキームを宣言できます（または省略します）。プラグインはアプリの Info.plist に適切な `CFBundleURLTypes` エントリを生成します。`.well-known` ファイルや HTTPS ホストは必要ありません。
+
+### デスクトップ
+
+Linux と Windows では、ディープリンクは新しいアプリプロセスのコマンドライン引数として配信されます。
+ディープリンクプラグインは、イベントを受信する単一のアプリインスタンスを持つことを好む場合、[single instance] プラグインと統合されています。
+
+- まず、`deep-link` 機能を single instance プラグインに追加する必要があります。
+
+```toml title="src-tauri/Cargo.toml"
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
+tauri-plugin-single-instance = { version = "2.0.0", features = ["deep-link"] }
+```
+
+- 次に、常に登録する最初のプラグインである必要がある single instance プラグインを設定します。
+
+```rust title="src-tauri/lib.rs"
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
+          println!("a new app instance was opened with {argv:?} and the deep link event was already triggered");
+          // ランタイムにディープリンクスキームを定義する場合、ここで `argv` も確認する必要があります
+        }));
+    }
+
+    builder = builder.plugin(tauri_plugin_deep_link::init());
+}
+```
+
+:::caution
+ユーザーは、URL を引数として含めることで、手動で偽のディープリンクをトリガーできます。
+Tauri は、これを軽減するために、構成されたスキームに対してコマンドライン引数を照合しますが、それでも URL が期待する形式と一致するかどうかを確認する必要があります。
+
+これは、Tauri が静的に構成されたスキームのディープリンクのみを処理することを意味し、ランタイムに登録されたスキームは [`Env::args_os`] を使用して手動で確認する必要があります。
+:::
+
+## 設定
+
+`tauri.conf.json > plugins > deep-link` で、アプリケーションに関連付けるモバイルドメイン/スキームとデスクトップスキームを設定します。
+
+### 例
+
+**モバイルのカスタムスキーム (サーバー不要):**
+
+```json title="tauri.conf.json"
+{
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        {
+          "scheme": ["ovi"],
+          "appLink": false
+        }
+      ]
+    }
+  }
+}
+```
+
+これにより、Android と iOS で `ovi://*` スキームが登録されます。
+
+**アプリリンク / ユニバーサルリンク (検証済み https + ホスト):**
+
+```json
+{
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        {
+          "scheme": ["https"],
+          "host": "your.website.com",
+          "pathPrefix": ["/open"],
+          "appLink": true
+        }
+      ]
+    }
+  }
+}
+```
+
+これにより、`https://your.website.com/open/*` がアプリ/ユニバーサルリンクとして登録されます。
+
+**デスクトップカスタムスキーム:**
+
+```json
+{
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["something", "my-tauri-app"]
+      }
+    }
+  }
+}
+```
+
+## 使用法
+
+ディープリンクプラグインは、JavaScript と Rust の両方で使用できます。
+
+### ディープリンクのリスニング
+
+<Tabs syncKey="lang">
+  <TabItem label="JavaScript">
+
+アプリの実行中にディープリンクがトリガーされると、`onOpenUrl` コールバックが呼び出されます。アプリがディープリンク経由で開かれたかどうかを検出するには、アプリの起動時に `getCurrent` を使用します。
+
+```javascript
+import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
+// `"withGlobalTauri": true` を使用する場合、以下を使用できます
+// const { getCurrent, onOpenUrl } = window.__TAURI__.deepLink;
+
+const startUrls = await getCurrent();
+if (startUrls) {
+  // アプリはおそらくディープリンク経由で起動されました
+  // getCurrent の戻り値は、onOpenUrl がトリガーされるたびに更新されることにも注意してください。
+}
+
+await onOpenUrl((urls) => {
+  console.log('deep link:', urls);
+});
+```
+
+  </TabItem>
+  <TabItem label="Rust">
+
+アプリの実行中にディープリンクがトリガーされると、プラグインの `on_open_url` クロージャが呼び出されます。アプリがディープリンク経由で開かれたかどうかを検出するには、アプリの起動時に `get_current` を使用します。
+
+```rust title="src-tauri/src/lib.rs"
+use tauri_plugin_deep_link::DeepLinkExt;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
+        .setup(|app| {
+            // get_current の戻り値は、on_open_url がトリガーされるたびに更新されることにも注意してください。
+            let start_urls = app.deep_link().get_current()?;
+            if let Some(urls) = start_urls {
+                // アプリはおそらくディープリンクによって起動されました
+                println!("deep link URLs: {:?}", urls);
+            }
+
+            app.deep_link().on_open_url(|event| {
+                println!("deep link URLs: {:?}", event.urls());
+            });
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+```
+
+  </TabItem>
+</Tabs>
+
+:::note
+オープン URL イベントは、ディープリンク用の macOS API と互換性を持たせるために要求された URL のリストでトリガーされますが、ほとんどの場合、アプリは単一の URL のみを受け取ります。
+:::
+
+### ランタイムでのデスクトップディープリンクの登録
+
+[設定](#設定) セクションでは、アプリケーションの静的ディープリンクスキームを定義する方法について説明しています。
+
+Linux と Windows では、`register` Rust 関数を介してランタイムにアプリケーションにスキームを関連付けることも可能です。
+
+次のスニペットでは、ランタイムに `my-app` スキームを登録します。アプリを初めて実行した後、オペレーティングシステムは `my-app://*` URL をアプリケーションで開きます。
+
+```rust title="src-tauri/src/lib.rs"
+use tauri_plugin_deep_link::DeepLinkExt;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
+        .setup(|app| {
+            #[cfg(desktop)]
+            app.deep_link().register("my-app")?;
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+```
+
+:::note
+デフォルトでは、ディープリンクはアプリがインストールされているときにのみ登録されるため、ランタイムにディープリンクを登録することは、Linux や Windows での開発に役立ちます。
+
+AppImage のインストールには、AppImage をオペレーティングシステムに統合するための AppImage ランチャーが必要なため、複雑になる可能性があります。
+
+ランタイムにディープリンクを登録することが好ましい場合があるため、Tauri には、静的に構成されたすべてのディープリンクをランタイムに強制的に登録するヘルパー関数も含まれています。
+この関数を呼び出すと、開発モードでもディープリンクが登録されます。
+
+```rust
+#[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+{
+  use tauri_plugin_deep_link::DeepLinkExt;
+  app.deep_link().register_all()?;
+}
+```
+
+:::
+
+## テスト
+
+アプリケーションのディープリンクをテストするには、いくつかの注意点があります。
+
+### デスクトップ
+
+ディープリンクは、デスクトップにインストールされたアプリケーションに対してのみトリガーされます。
+Linux と Windows では、[`register_all`] Rust 関数を使用してこれを回避できます。これは、構成されたすべてのスキームを登録して現在の実行可能ファイルをトリガーします。
+
+```rust title="src-tauri/src/lib.rs"
+use tauri_plugin_deep_link::DeepLinkExt;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
+        .setup(|app| {
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                app.deep_link().register_all()?;
+            }
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+```
+
+:::note
+Linux でディープリンクをサポートする AppImage をインストールするには、AppImage をオペレーティングシステムに統合するための AppImage ランチャーが必要です。
+`register_all` 関数を使用すると、ユーザーが外部ツールを使用しなくても、そのままディープリンクをサポートできます。
+
+AppImage がファイルシステム内の別の場所に移動されると、実行可能ファイルへの絶対パスを利用するため、ディープリンクが無効になります。これにより、ランタイムにスキームを登録することがさらに重要になります。
+
+詳細については、[ランタイムでのデスクトップディープリンクの登録](#ランタイムでのデスクトップディープリンクの登録) セクションを参照してください。
+:::
+
+:::caution
+macOS ではランタイムにディープリンクを登録することはできないため、ディープリンクはバンドルされたアプリケーションでのみテストできます。これは `/Applications` ディレクトリにインストールする必要があります。
+:::
+
+#### Windows
+
+Windows でディープリンクをトリガーするには、ブラウザで `<scheme>://url` を開くか、ターミナルで次のコマンドを実行します。
+
+```sh
+start <scheme>://url
+```
+
+#### Linux
+
+Linux でディープリンクをトリガーするには、ブラウザで `<scheme>://url` を開くか、ターミナルで `xdg-open` を実行します。
+
+```sh
+xdg-open <scheme>://url
+```
+
+### iOS
+
+iOS でアプリリンクをトリガーするには、ブラウザで `https://<host>/path` URL を開くことができます。シミュレーターの場合、`simctl` CLI を利用してターミナルからリンクを直接開くことができます。
+
+```sh
+xcrun simctl openurl booted https://<host>/path
+```
+
+### Android
+
+Android でアプリリンクをトリガーするには、ブラウザで `https://<host>/path` URL を開くことができます。エミュレーターの場合、`adb` CLI を利用してターミナルからリンクを直接開くことができます。
+
+```sh
+adb shell am start -a android.intent.action.VIEW -d https://<host>/path <bundle-identifier>
+```
+
+## 権限
+
+デフォルトでは、すべての潜在的に危険なプラグインコマンドとスコープはブロックされており、アクセスできません。これらを有効にするには、`capabilities` 設定の権限を変更する必要があります。
+
+詳細については、[機能の概要](/security/capabilities/) と、プラグイン権限を使用するための [ステップバイステップガイド](/learn/security/using-plugin-permissions/) を参照してください。
+
+```json title="src-tauri/capabilities/default.json" ins={9}
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile-capability",
+  "windows": ["main"],
+  "platforms": ["iOS", "android"],
+  "permissions": [
+    // 通常、ディープリンクイベントをリッスンするには core:event:default が必要です
+    "core:event:default",
+    "deep-link:default"
+  ]
+}
+```
+
+<PluginPermissions plugin={frontmatter.plugin} />
+
+[`tauri.conf.json > identifier`]: /reference/config/#identifier
+[verify Android applinks]: https://developer.android.com/training/app-links/verify-android-applinks#web-assoc
+[universal links]: https://developer.apple.com/documentation/xcode/allowing-apps-and-websites-to-link-to-your-content?language=objc
+[single instance]: /plugin/single-instance/
+[`register_all`]: https://docs.rs/tauri-plugin-deep-link/2.0.0/tauri_plugin_deep_link/struct.DeepLink.html#method.register_all
+[ngrok]: https://ngrok.com/
+[`Env::args_os`]: https://docs.rs/tauri/2.0.0/tauri/struct.Env.html#structfield.args_os

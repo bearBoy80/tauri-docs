@@ -1,0 +1,64 @@
+---
+title: Tamaño de la aplicación
+sidebar:
+  order: 0
+i18nReady: true
+---
+
+A los usuarios les gustan las aplicaciones pequeñas. Les gustan las aplicaciones que se descargan rápidamente y no consumen mucho espacio en el disco. Esta guía documenta los conceptos básicos sobre cómo hacer que tu aplicación Tauri sea lo más pequeña posible.
+
+## Conceptos
+
+Hay varias razones por las que las aplicaciones Tauri son tan pequeñas.
+
+### Rust
+
+Rust se compila a código máquina nativo, por lo que no es necesario enviar un tiempo de ejecución voluminoso (como Node.js o Python) con tu aplicación.
+
+### WebView del sistema
+
+La razón por la que la mayoría de las aplicaciones "nativas" modernas son tan grandes es porque utilizan Electron (o una solución similar), que empaqueta el motor Chromium y el tiempo de ejecución de Node.js con cada aplicación.
+
+Tauri toma un enfoque diferente; utiliza el Webview del sistema operativo subyacente. Esto significa que el usuario ya tiene descargada la mayor parte de tu aplicación (el motor de renderizado).
+
+## Opciones de configuración
+
+Hay varias opciones de configuración para `cargo` que cambian el tamaño binario de tu aplicación.
+
+Para la mayoría de los desarrolladores de Rust, hay dos perfiles de compilación que importan: `dev` (utilizado para `cargo build` y `tauri dev`) y `release` (utilizado para `cargo build --release` y `tauri build`). De forma predeterminada, los binarios de depuración pueden ser bastante grandes, pero eso no es un problema ya que solo se usan para desarrollo. Los binarios de lanzamiento son mucho más pequeños, pero todavía hay cosas que podemos hacer para que sean aún más pequeños.
+
+### Perfil de lanzamiento
+
+Puedes agregar lo siguiente a tu archivo `src-tauri/Cargo.toml` para disminuir el tamaño del binario:
+
+```toml title="src-tauri/Cargo.toml"
+[profile.release]
+codegen-units = 1 # Permite a LLVM realizar una mejor optimización.
+lto = true # Habilita optimizaciones en tiempo de enlace.
+opt-level = "s" # Prioriza tamaño binario pequeño. Usa "z" para un tamaño aún más pequeño.
+panic = "abort" # Optimización de rendimiento superior y binario más pequeño al deshabilitar el desenrollado de pánico.
+strip = true # Elimina símbolos del binario.
+trim-paths = "all" # Elimina información privilegiada del binario.
+rustflags = ["-Cdebuginfo=0"]
+```
+
+Ten en cuenta que estas optimizaciones pueden ralentizar el tiempo de compilación.
+
+Para obtener una explicación detallada de cada opción y más formas de minimizar el binario, consulta la referencia [Minimizing Rust Binary Size](https://github.com/johnthagen/min-sized-rust).
+
+### Desactivar características predeterminadas
+
+El crate `tauri` incluye por defecto una variedad de características que no todas las aplicaciones necesitan (como el icono de la bandeja del sistema o la API del portapapeles). Si tu aplicación no utiliza estas características, puedes desactivarlas para reducir aún más el tamaño de tu aplicación y el tiempo de compilación.
+
+Para hacer esto, debes desactivar las `default-features` en la sección `[dependencies]` de tu archivo `src-tauri/Cargo.toml` y solo incluir las características que realmente usas.
+
+El resultado podría verse algo así:
+
+```toml title="src-tauri/Cargo.toml"
+[dependencies]
+tauri = { version = "2", default-features = false, features = ["wry", "image-ico", "image-png"] }
+```
+
+### Limpiar el frontend
+
+Es común que tu código frontend venga con una variedad de activos (imágenes, fuentes, etc.) que no se utilizan en la aplicación final. Recomendamos utilizar herramientas como `purifycss` para eliminar el CSS no utilizado y `imagemin` para comprimir imágenes.

@@ -1,0 +1,101 @@
+---
+title: ウィンドウメニュー
+description: アプリケーションウィンドウにネイティブメニューを追加する方法。
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+ウィンドウメニューは、アプリケーションの一般的な機能へのアクセスを提供する重要な UI 要素です。
+Tauri では、クロスプラットフォームのネイティブメニューを簡単に作成できます。
+
+## メニューの作成
+
+メニューは、Rust または JavaScript で作成できます。
+
+### Rust
+
+Rust でメニューを作成するには、`tauri::menu` モジュールを使用します。
+
+```rust
+use tauri::menu::{Menu, MenuItem, Submenu};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let save_menu_item = MenuItem::with_id(app, "save", "Save", true, Some("cmd+s"))?;
+    let file_menu = Submenu::with_items(app, "File", true, &[&save_menu_item])?;
+    let menu = Menu::with_items(app, &[&file_menu])?;
+
+    app.set_menu(menu)?;
+
+    Ok(())
+  })
+```
+
+### JavaScript
+
+JavaScript でメニューを作成するには、`@tauri-apps/api/menu` モジュールを使用します。
+
+```javascript
+import { Menu, Submenu, MenuItem } from '@tauri-apps/api/menu';
+
+const saveMenuItem = await MenuItem.new({
+  id: 'save',
+  text: 'Save',
+  accelerator: 'CmdOrCtrl+S',
+});
+
+const fileMenu = await Submenu.new({
+  text: 'File',
+  items: [saveMenuItem],
+});
+
+const menu = await Menu.new({
+  items: [fileMenu],
+});
+
+await menu.setAsAppMenu();
+```
+
+## イベントの処理
+
+メニュー項目がクリックされたときのイベントを処理するには、Rust の `on_menu_event` コールバックまたは JavaScript の `action` プロパティを使用します。
+
+### Rust
+
+```rust
+tauri::Builder::default()
+  .on_menu_event(|app, event| {
+    match event.id.as_ref() {
+      "save" => {
+        println!("Save menu item clicked");
+        // 保存ロジックを実行
+      }
+      _ => {}
+    }
+  })
+```
+
+### JavaScript
+
+```javascript
+const saveMenuItem = await MenuItem.new({
+  id: 'save',
+  text: 'Save',
+  action: () => {
+    console.log('Save menu item clicked');
+    // 保存ロジックを実行
+  },
+});
+```
+
+## プリ定義メニュー項目
+
+Tauri は、一般的なアクション（コピー、貼り付け、切り取りなど）のためのプリ定義メニュー項目を提供しています。これらを使用すると、OS 標準の動作を簡単に実装できます。
+
+- `PredefinedMenuItem::copy(app, text)`
+- `PredefinedMenuItem::cut(app, text)`
+- `PredefinedMenuItem::paste(app, text)`
+- ...など
+
+詳細は [ドキュメント](https://docs.rs/tauri/latest/tauri/menu/struct.PredefinedMenuItem.html) を参照してください。
