@@ -1,0 +1,45 @@
+---
+title: 学ぶ
+sidebar:
+  label: 概要
+  order: 0
+i18nReady: true
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Tauri には多くの設定やカスタマイズが可能です。
+以下は、より高度な概念のガイドです。
+
+<CardGrid>
+  <LinkCard
+    title="ウィンドウのカスタマイズ"
+    href="/learn/window-customization/"
+    description="アプリケーションのメインウィンドウを作成、設定、カスタマイズする方法。"
+  />
+  <LinkCard
+    title="システムトレイ"
+    href="/learn/system-tray/"
+    description="システムトレイメニューを追加および設定する方法。"
+  />
+  <LinkCard
+    title="サイドカー (外部バイナリ)"
+    href="/develop/sidecar/"
+    description="アプリケーションに外部バイナリを埋め込み、実行する方法。"
+  />
+  <LinkCard
+    title="Node.js サイドカー"
+    href="/learn/sidecar-nodejs/"
+    description="Node.js をサイドカーとして使用する方法。"
+  />
+  <LinkCard
+    title="ディープリンク"
+    href="/plugin/deep-linking/"
+    description="アプリケーションでディープリンクを処理する方法。"
+  />
+  <LinkCard
+    title="スプラッシュスクリーン"
+    href="/learn/splashscreen/"
+    description="アプリケーションの起動中にスプラッシュスクリーンを追加する方法。"
+  />
+</CardGrid>

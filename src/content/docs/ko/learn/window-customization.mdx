@@ -1,0 +1,83 @@
+---
+title: 창 사용자 정의
+description: Tauri 애플리케이션에서 창을 만들고 사용자 정의하는 방법.
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+Tauri를 사용하면 창의 모양과 동작을 고도로 사용자 정의할 수 있습니다.
+창은 [`tauri.conf.json`] 파일에서 구성하거나 런타임에 코드로 만들 수 있습니다.
+
+## 구성
+
+창의 기본 구성은 [`tauri.conf.json`] 파일의 `app.windows` 배열에 정의되어 있습니다.
+
+```json title="tauri.conf.json"
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "내 Tauri 앱",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  }
+}
+```
+
+사용 가능한 모든 옵션은 [WindowConfig API]를 참조하십시오.
+
+## 런타임에 창 만들기
+
+[`WebviewWindow`] 클래스를 사용하여 런타임에 새 창을 만들 수 있습니다.
+
+### JavaScript
+
+JavaScript에서 새 창을 만들려면 `@tauri-apps/api/webviewWindow` 모듈의 `WebviewWindow` 클래스를 사용하십시오.
+
+```javascript
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+
+const webview = new WebviewWindow('theUniqueLabel', {
+  url: 'https://github.com/tauri-apps/tauri',
+});
+
+webview.once('tauri://created', function () {
+  // 웹뷰 창이 성공적으로 생성되었습니다.
+});
+
+webview.once('tauri://error', function (e) {
+  // 웹뷰 창 생성 중 오류가 발생했습니다.
+});
+```
+
+### Rust
+
+Rust에서 새 창을 만들려면 [`AppHandle`] 또는 [`App`] 인스턴스를 사용할 수 있습니다.
+
+```rust
+use tauri::{WebviewUrl, WebviewWindowBuilder};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let _webview = WebviewWindowBuilder::new(
+      app,
+      "theUniqueLabel",
+      WebviewUrl::External("https://github.com/tauri-apps/tauri".parse().unwrap())
+    )
+      .title("내 Tauri 앱")
+      .build()?;
+    Ok(())
+  })
+```
+
+[`tauri.conf.json`]: /reference/config/
+[WindowConfig API]: /reference/config/#windowconfig
+[`WebviewWindow`]: /reference/javascript/api/webviewWindow/
+[`AppHandle`]: https://docs.rs/tauri/latest/tauri/struct.AppHandle.html
+[`App`]: https://docs.rs/tauri/latest/tauri/struct.App.html
