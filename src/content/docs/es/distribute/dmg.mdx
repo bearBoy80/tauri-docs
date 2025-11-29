@@ -1,0 +1,137 @@
+---
+title: DMG
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+import { Image } from 'astro:assets';
+import StandardDmgLight from '@assets/distribute/dmg/standard-dmg-light.png';
+import StandardDmgDark from '@assets/distribute/dmg/standard-dmg-dark.png';
+
+El formato DMG (Apple Disk Image) es un archivo instalador común de macOS que envuelve tu [App Bundle][App Bundle distribution guide] en una ventana de instalación fácil de usar.
+
+La ventana del instalador incluye el icono de tu aplicación y el icono de la carpeta Aplicaciones, donde se espera que el usuario arrastre el icono de la aplicación al icono de la carpeta Aplicaciones para instalarla.
+Es el método de instalación más común para aplicaciones macOS distribuidas fuera de la App Store.
+
+Esta guía solo cubre detalles para distribuir aplicaciones fuera de la App Store utilizando el formato DMG.
+Consulta la [guía de distribución de App Bundle][App Bundle distribution guide] para obtener más información sobre las opciones y configuraciones de distribución de macOS.
+Para distribuir tu aplicación macOS en la App Store, consulta la [guía de distribución de App Store][App Store distribution guide].
+
+Para crear una Apple Disk Image para tu aplicación, puedes usar la CLI de Tauri y ejecutar el comando `tauri build` en una computadora Mac:
+
+<CommandTabs
+  npm="npm run tauri build -- --bundles dmg"
+  yarn="yarn tauri build --bundles dmg"
+  pnpm="pnpm tauri build --bundles dmg"
+  deno="deno task tauri build --bundles dmg"
+  bun="bun tauri build --bundles dmg"
+  cargo="cargo tauri build --bundles dmg"
+/>
+
+<Image
+  class="dark:sl-hidden"
+  src={StandardDmgLight}
+  alt="Ventana DMG estándar"
+/>
+<Image
+  class="light:sl-hidden"
+  src={StandardDmgDark}
+  alt="Ventana DMG estándar"
+/>
+
+:::note
+
+Las aplicaciones GUI en macOS y Linux no heredan el `$PATH` de tus archivos de configuración de shell (`.bashrc`, `.bash_profile`, `.zshrc`, etc). Consulta el crate [fix-path-env-rs](https://github.com/tauri-apps/fix-path-env-rs) de Tauri para solucionar este problema.
+
+:::
+
+## Fondo de ventana
+
+Puedes establecer una imagen de fondo personalizada para la ventana de instalación DMG con la opción de configuración [`tauri.conf.json > bundle > macOS > dmg > background`]:
+
+```json title="tauri.conf.json" ins={4-6}
+{
+  "bundle": {
+    "macOS": {
+      "dmg": {
+        "background": "./images/"
+      }
+    }
+  }
+}
+```
+
+Por ejemplo, tu imagen de fondo DMG puede incluir una flecha para indicar al usuario que debe arrastrar el icono de la aplicación a la carpeta Aplicaciones.
+
+## Tamaño y posición de la ventana
+
+El tamaño predeterminado de la ventana es 660x400. Si necesitas un tamaño diferente para que se ajuste a tu imagen de fondo personalizada, establece la configuración [`tauri.conf.json > bundle > macOS > dmg > windowSize`]:
+
+```json title="tauri.conf.json" ins={5-8}
+{
+  "bundle": {
+    "macOS": {
+      "dmg": {
+        "windowSize": {
+          "width": 800,
+          "height": 600
+        }
+      }
+    }
+  }
+}
+```
+
+Además, puedes establecer la posición inicial de la ventana a través de [`tauri.conf.json > bundle > macOS > dmg > windowPosition`]:
+
+```json title="tauri.conf.json" ins={5-8}
+{
+  "bundle": {
+    "macOS": {
+      "dmg": {
+        "windowPosition": {
+          "x": 400,
+          "y": 400
+        }
+      }
+    }
+  }
+}
+```
+
+## Posición del icono
+
+Puedes cambiar la posición del icono de la aplicación y de la _carpeta Aplicaciones_
+con los valores de configuración [appPosition] y [applicationFolderPosition] respectivamente:
+
+```json title="tauri.conf.json" ins={5-12}
+{
+  "bundle": {
+    "macOS": {
+      "dmg": {
+        "appPosition": {
+          "x": 180,
+          "y": 220
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 220
+        }
+      }
+    }
+  }
+}
+```
+
+:::caution
+Debido a un problema conocido, los tamaños y posiciones de los iconos no se aplican al crear DMG en plataformas CI/CD.
+Consulta [tauri-apps/tauri#1731] para obtener más información.
+:::
+
+[App Bundle distribution guide]: /es/distribute/macos-application-bundle/
+[App Store distribution guide]: /es/distribute/app-store/
+[appPosition]: /es/reference/config/#appposition
+[applicationFolderPosition]: /es/reference/config/#applicationfolderposition
+[tauri-apps/tauri#1731]: https://github.com/tauri-apps/tauri/issues/1731

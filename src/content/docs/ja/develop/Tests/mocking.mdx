@@ -5,6 +5,7 @@ sidebar:
 i18nReady: true
 ---
 
+import SinceVersion from '@components/SinceVersion.astro';
 import TranslationNote from '@components/i18n/TranslationNote.astro';
 
 フロントエンド・テストを作成する場合、ウィンドウをシミュレートしたり IPC 呼び出しをインターセプトしたりするための「仮の」Tauri 環境（いわゆる **モッキング**）を用意するのが一般的です。
@@ -30,6 +31,8 @@ Tauri では「IPC 要求」をインターセプトするための mockIPC 関�
 以下の事例では テスト・フレームワークの [Vitest] を使用していますが、[jest] のような他のフロントエンド・テスト・ライブラリを使用することもできます。
 
 :::
+
+### `invoke` コマンドのモック化
 
 ```javascript
 import { beforeAll, expect, test } from "vitest";
@@ -138,6 +141,33 @@ mockIPC(async (cmd, args) => {
 
 </TranslationNote>
 
+### イベントのモック化
+
+<SinceVersion version="2.7.0" />
+
+`shouldMockEvents` オプションを使用すると、[Event System] の部分的なサポートにより、Rust コードから発行されるイベントをシミュレートできます：
+
+```javascript
+import { mockIPC, clearMocks } from '@tauri-apps/api/mocks';
+import { emit, listen } from '@tauri-apps/api/event';
+import { afterEach, expect, test, vi } from 'vitest';
+
+test('mocked event', () => {
+  mockIPC(() => {}, { shouldMockEvents: true }); // enable event mocking
+
+  const eventHandler = vi.fn();
+  listen('test-event', eventHandler);
+
+  emit('test-event', { foo: 'bar' });
+  expect(eventHandler).toHaveBeenCalledWith({
+    event: 'test-event',
+    payload: { foo: 'bar' },
+  });
+});
+```
+
+`emitTo` と `emit_filter` はまだサポートされて**いません**。
+
 ## Windows の場合
 
 Windows では、時として Windows 固有のコード（たとえば、スプラッシュ・スクリーン・ウィンドウ）のために、異なるウィンドウのシミュレーションが必要となる場合があります。
@@ -184,6 +214,7 @@ test('invoke', async () => {
 [Vitest]: https://vitest.dev
 [jest]: https://jestjs.io/ja/
 [サイドカー]: /ja/develop/sidecar/
+[Event System]: /ja/develop/calling-frontend/#event-system
 
 <div style="text-align: right">
   【※ この日本語版は、「Jan 22, 2025 英語版」に基づいています】

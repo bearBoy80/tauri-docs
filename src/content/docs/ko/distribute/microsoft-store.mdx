@@ -1,0 +1,123 @@
+---
+title: Microsoft Store
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+Microsoft Store는 Microsoft에서 운영하는 Windows 앱 스토어입니다.
+
+이 가이드는 Windows 앱을 Microsoft Store에 직접 배포하는 데 필요한 세부 정보만 다룹니다.
+Windows 설치 프로그램 배포 옵션 및 구성에 대한 자세한 내용은 [Windows 설치 프로그램 가이드][Windows Installer guide]를 참조하십시오.
+
+## 요구 사항
+
+Microsoft Store에 앱을 게시하려면 Microsoft 계정이 있어야 하며
+개인 또는 회사로 개발자로 [등록][enroll]해야 합니다.
+
+## 앱 아이콘 변경
+
+Tauri CLI는 Microsoft Store 아이콘을 포함하여 앱에 필요한 모든 아이콘을 생성할 수 있습니다.
+`tauri icon` 명령을 사용하여 단일 PNG 또는 SVG 소스에서 앱 아이콘을 생성하십시오:
+
+<CommandTabs
+  npm="npm run tauri icon /path/to/app-icon.png"
+  yarn="yarn tauri icon /path/to/app-icon.png"
+  pnpm="pnpm tauri icon /path/to/app-icon.png"
+  deno="deno task tauri icon /path/to/app-icon.png"
+  bun="bun tauri icon /path/to/app-icon.png"
+  cargo="cargo tauri icon /path/to/app-icon.png"
+/>
+
+## 설정
+
+Microsoft 계정으로 개발자로 등록한 후 [앱 및 게임][Apps and Games] 페이지에서 앱을 등록해야 합니다.
+`새 제품`을 클릭하고 `EXE 또는 MSI 앱`을 선택한 다음 앱의 고유 이름을 예약하십시오.
+
+## 빌드 및 업로드
+
+현재 Tauri는 [EXE 및 MSI][Windows Installer guide] 설치 프로그램만 생성하므로
+압축이 풀린 애플리케이션에만 연결되는 Microsoft Store 애플리케이션을 만들어야 합니다.
+Microsoft Installer에 연결된 설치 프로그램은 오프라인이어야 하고, [자동 업데이트 처리][handle auto-updates]를 해야 하며, [코드 서명][code signed]되어야 합니다.
+
+자세한 내용은 [공식 게시 문서][official publish documentation]를 참조하십시오.
+
+### 오프라인 설치 프로그램
+
+Microsoft Store를 통해 배포되는 Windows 설치 프로그램은 [오프라인 설치 프로그램][Offline Installer] Webview2 설치 옵션을 사용해야 합니다.
+
+Microsoft Store용으로 번들링할 때만 이 설치 프로그램 구성을 적용하려면 별도의 Tauri 구성 파일을 정의할 수 있습니다:
+
+```json title="src-tauri/tauri.microsoftstore.conf.json"
+{
+  "bundle": {
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller"
+      }
+    }
+  }
+}
+```
+
+그런 다음 Microsoft Store용 Tauri 앱을 번들링할 때 해당 구성 파일을 기본 파일과 병합합니다:
+
+<CommandTabs
+  npm="npm run tauri build -- --no-bundle
+npm run tauri bundle -- --config src-tauri/tauri.microsoftstore.conf.json"
+  yarn="yarn tauri build --no-bundle
+yarn tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+  pnpm="pnpm tauri build --no-bundle
+pnpm tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+  deno="deno task tauri build --no-bundle
+deno task tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+  bun="bun tauri build --no-bundle
+bun tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+  cargo="cargo tauri build --no-bundle
+cargo tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+/>
+
+이것은 앱 스토어 외부에서 배포하는 Windows 설치 프로그램에 대해 별도의 구성을 유지하면서
+앱을 Microsoft Store에 업로드하도록 CI/CD를 설정할 때 특히 유용합니다.
+
+### 게시자
+
+애플리케이션 [게시자][publisher] 이름은 애플리케이션 제품 이름과 일치할 수 없습니다.
+
+게시자 구성 값이 설정되지 않은 경우 Tauri는 번들 식별자의 두 번째 부분에서 이를 파생시킵니다.
+게시자 이름은 제품 이름과 일치할 수 없으므로 다음 구성은 유효하지 않습니다:
+
+```json title=tauri.conf.json "example" "Example"
+{
+  "productName": "Example",
+  "identifier": "com.example.app"
+}
+```
+
+이 경우 [publisher] 값을 별도로 정의하여 이 충돌을 해결할 수 있습니다:
+
+```json title=tauri.conf.json ins={4-6}
+{
+  "productName": "Example",
+  "identifier": "com.example.app",
+  "bundle": {
+    "publisher": "Example Inc."
+  }
+}
+```
+
+### 업로드
+
+Microsoft Store용 Windows 설치 프로그램을 빌드한 후 선택한 배포 서비스에 업로드하고
+Microsoft Store 웹사이트의 애플리케이션 페이지에 링크할 수 있습니다.
+
+[Windows Installer guide]: /ko/distribute/windows-installer/
+[enroll]: https://learn.microsoft.com/en-us/windows/apps/get-started/sign-up
+[Apps and Games]: https://partner.microsoft.com/en-us/dashboard/apps-and-games/overview
+[handle auto-updates]: /ko/plugin/updater/
+[code signed]: /ko/distribute/sign/windows/
+[Offline Installer]: /ko/distribute/windows-installer/#offline-installer
+[official publish documentation]: https://learn.microsoft.com/en-us/windows/apps/publish/
+[publisher]: /ko/reference/config/#publisher

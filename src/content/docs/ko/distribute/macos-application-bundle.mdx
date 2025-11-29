@@ -1,0 +1,219 @@
+---
+title: macOS 애플리케이션 번들
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+애플리케이션 번들은 macOS에서 실행되는 패키지 형식입니다. 앱 실행 파일, 리소스, Info.plist 파일 및 macOS 프레임워크와 같은 기타 파일을 포함하여 애플리케이션이 성공적으로 작동하는 데 필요한 모든 것을 포함하는 단순한 디렉토리입니다.
+
+앱을 macOS 애플리케이션 번들로 패키징하려면 Tauri CLI를 사용하고 Mac 컴퓨터에서 `tauri build` 명령을 실행하면 됩니다:
+
+<CommandTabs
+  npm="npm run tauri build -- --bundles app"
+  yarn="yarn tauri build --bundles app"
+  pnpm="pnpm tauri build --bundles app"
+  deno="deno task tauri build --bundles app"
+  bun="bun tauri build --bundles app"
+  cargo="cargo tauri build --bundles app"
+/>
+
+:::note
+
+macOS 및 Linux의 GUI 앱은 쉘 dotfiles(`.bashrc`, `.bash_profile`, `.zshrc` 등)에서 `$PATH`를 상속하지 않습니다. 이 문제를 해결하려면 Tauri의 [fix-path-env-rs](https://github.com/tauri-apps/fix-path-env-rs) 크레이트를 확인하십시오.
+
+:::
+
+## 파일 구조
+
+macOS 앱 번들은 다음과 같은 구조를 가진 디렉토리입니다:
+
+```
+├── <productName>.app
+│   ├── Contents
+│   │   ├── Info.plist
+│   │   ├── ...[`tauri.conf.json > bundle > macOS > files`]의 추가 파일
+│   ├── MacOS
+│   │   ├── <app-name> (앱 실행 파일)
+│   ├── Resources
+│   │   ├── icon.icns (앱 아이콘)
+│   │   ├── ...[`tauri.conf.json > bundle > resources`]의 리소스
+│   ├── _CodeSignature (Apple에서 생성한 코드 서명 정보)
+│   ├── Frameworks
+│   ├── PlugIns
+│   ├── SharedSupport
+```
+
+자세한 내용은 [공식 문서](https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFBundles/BundleTypes/BundleTypes.html)를 참조하십시오.
+
+## 기본 구성
+
+앱 번들은 `Info.plist` 파일로 구성되며, 여기에는 앱 ID와 macOS에서 읽은 구성 값이 포함된 키-값 쌍이 포함됩니다.
+
+Tauri는 앱 바이너리 이름, 버전, 번들 식별자, 최소 시스템 버전 등과 같은 가장 중요한 속성을 자동으로 구성합니다.
+
+구성 파일을 확장하려면 `src-tauri` 폴더에 `Info.plist` 파일을 만들고 원하는 키-쌍을 포함하십시오:
+
+```xml title="src-tauri/Info.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>WebRTC를 위한 카메라 액세스 요청</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>WebRTC를 위한 마이크 액세스 요청</string>
+</dict>
+</plist>
+```
+
+이 `Info.plist` 파일은 Tauri CLI에서 생성한 값과 병합됩니다. 애플리케이션 버전과 같은 기본값을 덮어쓸 때 주의하십시오. 다른 구성 값과 충돌하여 예기치 않은 동작이 발생할 수 있습니다.
+
+자세한 내용은 [공식 Info.plist 문서][official Info.plist documentation]를 참조하십시오.
+
+### Info.plist 현지화
+
+`Info.plist` 파일 자체는 일반적으로 영어인 단일 언어만 지원합니다. 여러 언어를 지원하려면 각 추가 언어에 대해 `InfoPlist.strings` 파일을 만들 수 있습니다. 각 파일은 애플리케이션 번들의 `Resources` 디렉토리에 있는 고유한 언어별 `lproj` 디렉토리에 속합니다.
+
+이러한 파일을 자동으로 번들링하려면 Tauri의 [resources] 기능을 활용할 수 있습니다. 그렇게 하려면 다음 패턴에 따라 프로젝트에 파일 구조를 만드십시오:
+
+```
+├── src-tauri
+│   ├── tauri.conf.json
+│   ├── infoplist
+│   │   ├── de.lproj
+│   │   │   ├── InfoPlist.strings
+│   │   ├── fr.lproj
+│   │   │   ├── InfoPlist.strings
+```
+
+`infoplist` 디렉토리 이름은 아래 리소스 구성에서 업데이트하는 한 자유롭게 선택할 수 있지만, `lproj` 디렉토리는 `<lang-code>.lproj` 명명 규칙을 따라야 하며 문자열 카탈로그 파일의 이름은 `InfoPlist.strings`(대문자 i 및 p)여야 합니다. 대부분의 경우 언어 코드는 [BCP 47]을 따르는 두 글자 코드여야 합니다.
+
+위에 표시된 `Info.plist` 예제의 경우 `de.lproj > InfoPlist.strings` 파일은 다음과 같을 수 있습니다:
+
+```ini title="de.lproj/InfoPlist.strings"
+NSCameraUsageDescription = "Kamera Zugriff wird benötigt für WebRTC Funktionalität";
+NSMicrophoneUsageDescription = "Mikrofon Zugriff wird benötigt für WebRTC Funktionalität";
+```
+
+마지막으로 위에서 언급한 리소스 기능을 사용하여 Tauri가 이러한 파일을 선택하도록 합니다:
+
+```json title="src-tauri/tauri.conf.json"
+{
+  "bundle": {
+    "resources": {
+      "infoplist/**": "./"
+    }
+  }
+}
+```
+
+## 권한 (Entitlements)
+
+권한은 사용자의 기본 이메일 클라이언트 역할을 하거나 App Sandbox 기능을 사용하는 등 앱에 특정 기능을 부여하는 권한 또는 특권 역할을 하는 특수 Apple 구성 키-값 쌍입니다.
+
+권한은 애플리케이션이 서명될 때 적용됩니다. 자세한 내용은 [코드 서명 문서][code signing documentation]를 참조하십시오.
+
+애플리케이션에 필요한 권한을 정의하려면 권한 파일을 만들고 이를 사용하도록 Tauri를 구성해야 합니다.
+
+1. `src-tauri` 폴더에 `Entitlements.plist` 파일을 만들고 앱에 필요한 키-값 쌍을 구성합니다:
+
+```xml title="src-tauri/Entitlements.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+</dict>
+</plist>
+```
+
+2. Entitlements.plist 파일을 사용하도록 Tauri를 구성합니다:
+
+```json title="tauri.conf.json" ins={4}
+{
+  "bundle": {
+    "macOS": {
+      "entitlements": "./Entitlements.plist"
+    }
+  }
+}
+```
+
+자세한 내용은 [공식 문서](https://developer.apple.com/documentation/bundleresources/entitlements)를 참조하십시오.
+
+## 최소 시스템 버전
+
+기본적으로 Tauri 애플리케이션은 macOS 10.13 이상을 지원합니다. 최신 macOS 시스템이 필요한 API를 사용 중이고 앱 번들에서 해당 요구 사항을 적용하려면
+[`tauri.conf.json > bundle > macOS > minimumSystemVersion`] 값을 구성할 수 있습니다:
+
+```json title="tauri.conf.json" ins={4}
+{
+  "bundle": {
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    }
+  }
+}
+```
+
+## macOS 프레임워크 포함
+
+애플리케이션을 실행하는 데 추가 macOS 프레임워크가 필요한 경우 [`tauri.conf.json > bundle > macOS > frameworks`] 구성에 나열할 수 있습니다.
+프레임워크 목록에는 시스템 또는 사용자 지정 프레임워크와 dylib 파일이 포함될 수 있습니다.
+
+```json title="tauri.conf.json" ins={4-8}
+{
+  "bundle": {
+    "macOS": {
+      "frameworks": [
+        "CoreAudio",
+        "./libs/libmsodbcsql.18.dylib",
+        "./frameworks/MyApp.framework"
+      ]
+    }
+  }
+}
+```
+
+:::note
+
+- 시스템 프레임워크를 참조하려면 절대 경로 대신 이름(.framework 확장자 제외)만 사용할 수 있습니다.
+- 시스템 프레임워크는 `$HOME/Library/Frameworks`, `/Library/Frameworks/` 또는 `/Network/Library/Frameworks/` 중 하나에 존재해야 합니다.
+- 로컬 프레임워크 및 dylib 파일을 참조하려면 `src-tauri` 디렉토리를 기준으로 프레임워크의 전체 경로를 사용해야 합니다.
+
+:::
+
+## 사용자 지정 파일 추가
+
+[`tauri.conf.json > bundle > macOS > files`] 구성을 사용하여 애플리케이션 번들에 사용자 지정 파일을 추가할 수 있습니다.
+이 구성은 대상 경로를 `tauri.conf.json` 파일을 기준으로 한 소스에 매핑합니다.
+파일은 `<product-name>.app/Contents` 폴더에 추가됩니다.
+
+```json title="tauri.conf.json" ins={4-7}
+{
+  "bundle": {
+    "macOS": {
+      "files": {
+        "embedded.provisionprofile": "./profile-name.provisionprofile",
+        "SharedSupport/docs.md": "./docs/index.md"
+      }
+    }
+  }
+}
+```
+
+위의 예에서 `profile-name.provisionprofile` 파일은 `<product-name>.app/Contents/embedded.provisionprofile`로 복사되고
+`docs/index.md` 파일은 `<product-name>.app/Contents/SharedSupport/docs.md`로 복사됩니다.
+
+[`tauri.conf.json > bundle > macOS > frameworks`]: /ko/reference/config/#frameworks-1
+[`tauri.conf.json > bundle > macOS > files`]: /ko/reference/config/#files-2
+[`tauri.conf.json > bundle > resources`]: /ko/reference/config/#resources
+[official Info.plist documentation]: https://developer.apple.com/documentation/bundleresources/information_property_list
+[code signing documentation]: /ko/distribute/sign/macos/
+[`tauri.conf.json > bundle > macOS > minimumSystemVersion`]: /ko/reference/config/#minimumsystemversion
+[resources]: /ko/develop/resources/
+[BCP 47]: https://www.rfc-editor.org/rfc/bcp/bcp47.txt
