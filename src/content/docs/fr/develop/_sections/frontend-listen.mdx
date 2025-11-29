@@ -1,0 +1,144 @@
+---
+title: Appeler le frontend depuis Rust
+---
+
+Le paquet NPM `@tauri-apps/api` offre des API pour écouter les événements globaux et spécifiques à la webview.
+
+- Écoute des événements globaux
+
+  ```ts
+  import { listen } from '@tauri-apps/api/event';
+
+  type DownloadStarted = {
+    url: string;
+    downloadId: number;
+    contentLength: number;
+  };
+
+  listen<DownloadStarted>('download-started', (event) => {
+    console.log(
+      `téléchargement de ${event.payload.contentLength} octets depuis ${event.payload.url}`
+    );
+  });
+  ```
+
+- Écoute des événements spécifiques à la webview
+
+  ```ts
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+
+  const appWebview = getCurrentWebviewWindow();
+  appWebview.listen<string>('logged-in', (event) => {
+    localStorage.setItem('session-token', event.payload);
+  });
+  ```
+
+La fonction `listen` maintient l'écouteur d'événements enregistré pendant toute la durée de vie de l'application.
+Pour arrêter d'écouter un événement, vous pouvez utiliser la fonction `unlisten` qui est retournée par la fonction `listen` :
+
+```js
+import { listen } from '@tauri-apps/api/event';
+
+const unlisten = await listen('download-started', (event) => {});
+unlisten();
+```
+
+:::note
+Utilisez toujours la fonction unlisten lorsque votre contexte d'exécution sort de la portée
+comme lorsqu'un composant est démonté.
+
+Lorsque la page est rechargée ou que vous naviguez vers une autre URL, les auditeurs sont automatiquement désinscrits.
+Cela ne s'applique cependant pas à un routeur d'application à page unique (SPA).
+:::
+
+De plus, Tauri fournit une fonction utilitaire pour écouter un événement exactement une fois :
+
+```js
+import { once } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+
+once('ready', (event) => {});
+
+const appWebview = getCurrentWebviewWindow();
+appWebview.once('ready', () => {});
+```
+
+:::note
+Les événements émis dans le frontend déclenchent également les auditeurs enregistrés par ces API.
+Pour plus d'informations, consultez la documentation [Appeler Rust depuis le Frontend].
+:::
+
+#### Écoute des événements sur Rust
+
+Les événements globaux et spécifiques à la webview sont également livrés aux auditeurs enregistrés dans Rust.
+
+- Écoute des événements globaux
+
+  ```rust title="src-tauri/src/lib.rs"
+  use tauri::Listener;
+
+  #[cfg_attr(mobile, tauri::mobile_entry_point)]
+  pub fn run() {
+    tauri::Builder::default()
+      .setup(|app| {
+        app.listen("download-started", |event| {
+          if let Ok(payload) = serde_json::from_str::<DownloadStarted>(&event.payload()) {
+            println!("téléchargement {}", payload.url);
+          }
+        });
+        Ok(())
+      })
+      .run(tauri::generate_context!())
+      .expect("error while running tauri application");
+  }
+  ```
+
+- Écoute des événements spécifiques à la webview
+
+  ```rust title="src-tauri/src/lib.rs"
+  use tauri::{Listener, Manager};
+
+  #[cfg_attr(mobile, tauri::mobile_entry_point)]
+  pub fn run() {
+    tauri::Builder::default()
+      .setup(|app| {
+        let webview = app.get_webview_window("main").unwrap();
+        webview.listen("logged-in", |event| {
+          let session_token = event.data;
+          // sauvegarder le jeton..
+        });
+        Ok(())
+      })
+      .run(tauri::generate_context!())
+      .expect("error while running tauri application");
+  }
+  ```
+
+La fonction `listen` maintient l'écouteur d'événements enregistré pendant toute la durée de vie de l'application.
+Pour arrêter d'écouter un événement, vous pouvez utiliser la fonction `unlisten` :
+
+```rust
+// unlisten en dehors de la portée du gestionnaire d'événements :
+let event_id = app.listen("download-started", |event| {});
+app.unlisten(event_id);
+
+// unlisten lorsque certains critères d'événement sont remplis
+let handle = app.handle().clone();
+app.listen("status-changed", |event| {
+  if event.data == "ready" {
+    handle.unlisten(event.id);
+  }
+});
+```
+
+De plus, Tauri fournit une fonction utilitaire pour écouter un événement exactement une fois :
+
+```rust
+app.once("ready", |event| {
+  println!("app est prêt");
+});
+```
+
+Dans ce cas, l'écouteur d'événements est immédiatement désinscrit après son premier déclenchement.
+
+[Appeler Rust depuis le Frontend]: /fr/develop/calling-rust/

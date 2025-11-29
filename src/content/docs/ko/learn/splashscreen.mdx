@@ -1,0 +1,177 @@
+---
+title: 스플래시 화면
+description: 애플리케이션 초기화 중에 임시 창을 표시합니다.
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+스플래시 화면은 앱이 시작되는 동안 표시되는 임시 창입니다. 무거운 설정(예: 데이터베이스 초기화)이나 초기 콘텐츠 로드를 수행하는 동안 사용자에게 피드백을 제공하는 데 사용됩니다.
+
+이 가이드에서는 Tauri 애플리케이션에 정적 스플래시 화면을 추가하는 방법을 설명합니다.
+
+## 스플래시 화면 만들기
+
+먼저 스플래시 화면의 HTML 파일을 만듭니다. 이 파일은 스플래시 화면의 콘텐츠를 정의합니다.
+
+```html title="src/splashscreen.html"
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>로딩 중...</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f0f0f0;
+        font-family: Arial, sans-serif;
+      }
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 16px solid #3498db;
+        width: 120px;
+        height: 120px;
+        -webkit-animation: spin 2s linear infinite; /* Safari */
+        animation: spin 2s linear infinite;
+      }
+      /* Safari */
+      @-webkit-keyframes spin {
+        0% {
+          -webkit-transform: rotate(0deg);
+        }
+        100% {
+          -webkit-transform: rotate(360deg);
+        }
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader"></div>
+  </body>
+</html>
+```
+
+## 창 구성
+
+다음으로 [`tauri.conf.json`]에서 스플래시 화면용 창과 메인 창을 구성합니다.
+
+```json title="tauri.conf.json"
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "내 앱",
+        "visible": false, // 메인 창은 처음에 숨깁니다.
+        "fullscreen": false,
+        "width": 800,
+        "height": 600,
+        "resizable": true
+      },
+      {
+        "label": "splashscreen",
+        "title": "스플래시 화면",
+        "url": "splashscreen.html", // 스플래시 화면 HTML 파일
+        "decorations": false, // 창 장식(제목 표시줄 등) 제거
+        "center": true, // 화면 중앙에 배치
+        "width": 400,
+        "height": 300,
+        "resizable": false,
+        "visible": true // 스플래시 화면은 처음에 표시합니다.
+      }
+    ]
+  }
+}
+```
+
+## 스플래시 화면 로직
+
+마지막으로 메인 창이 준비되면 스플래시 화면을 닫고 메인 창을 표시하는 로직을 구현합니다.
+
+### Rust 구현
+
+Rust 측에서 초기화 작업을 수행하고 완료되면 이벤트를 보내는 방법도 있지만, 가장 일반적인 방법은 프런트엔드에서 제어하는 것입니다. 그러나 Rust에서 완전히 제어하려면 다음과 같이 할 수 있습니다.
+
+```rust
+use tauri::Manager;
+
+fn main() {
+  tauri::Builder::default()
+    .setup(|app| {
+      let splashscreen_window = app.get_webview_window("splashscreen").unwrap();
+      let main_window = app.get_webview_window("main").unwrap();
+
+      // 여기서 무거운 초기화 작업을 수행합니다...
+      // std::thread::sleep(std::time::Duration::from_secs(2));
+
+      // 초기화가 완료되면 스플래시 화면을 닫고 메인 창을 표시합니다.
+      splashscreen_window.close().unwrap();
+      main_window.show().unwrap();
+
+      Ok(())
+    })
+    .run(tauri::generate_context!())
+    .expect("앱 실행 실패");
+}
+```
+
+### 프런트엔드 구현
+
+프런트엔드 프레임워크의 수명 주기 이벤트(예: React의 `useEffect`, Vue의 `onMounted`)를 사용하여 앱이 준비되면 스플래시 화면을 닫을 수 있습니다.
+
+```javascript
+import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+
+// 스플래시 화면 닫기 함수
+async function closeSplashscreen() {
+  await invoke('close_splashscreen');
+}
+
+// 앱 초기화가 완료되었을 때 호출
+document.addEventListener('DOMContentLoaded', () => {
+  // 필요에 따라 추가 로딩 시간 시뮬레이션
+  setTimeout(() => {
+    closeSplashscreen();
+  }, 2000);
+});
+```
+
+이 경우 Rust 측에서 `close_splashscreen` 명령을 구현해야 합니다.
+
+```rust
+#[tauri::command]
+async fn close_splashscreen(window: tauri::Window) {
+  // 스플래시 화면 창 닫기
+  if let Some(splashscreen) = window.get_webview_window("splashscreen") {
+    splashscreen.close().unwrap();
+  }
+  // 메인 창 표시
+  if let Some(main_window) = window.get_webview_window("main") {
+    main_window.show().unwrap();
+  }
+}
+
+fn main() {
+  tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![close_splashscreen])
+    // ...
+}
+```
+
+[`tauri.conf.json`]: /reference/config/

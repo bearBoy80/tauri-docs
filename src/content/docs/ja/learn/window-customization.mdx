@@ -1,0 +1,83 @@
+---
+title: ウィンドウのカスタマイズ
+description: Tauri アプリケーションでウィンドウを作成およびカスタマイズする方法。
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+Tauri を使用すると、ウィンドウの外観と動作を高度にカスタマイズできます。
+ウィンドウは [`tauri.conf.json`] ファイルで設定することも、ランタイムにコードで作成することもできます。
+
+## 設定
+
+ウィンドウのデフォルト設定は、[`tauri.conf.json`] ファイルの `app.windows` 配列で定義されています。
+
+```json title="tauri.conf.json"
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "My Tauri App",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  }
+}
+```
+
+利用可能なすべてのオプションについては、[WindowConfig API] を参照してください。
+
+## ランタイムでのウィンドウ作成
+
+[`WebviewWindow`] クラスを使用して、ランタイムに新しいウィンドウを作成できます。
+
+### JavaScript
+
+JavaScript で新しいウィンドウを作成するには、`@tauri-apps/api/webviewWindow` モジュールの `WebviewWindow` クラスを使用します。
+
+```javascript
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+
+const webview = new WebviewWindow('theUniqueLabel', {
+  url: 'https://github.com/tauri-apps/tauri',
+});
+
+webview.once('tauri://created', function () {
+  // webview ウィンドウが正常に作成されました
+});
+
+webview.once('tauri://error', function (e) {
+  // webview ウィンドウの作成中にエラーが発生しました
+});
+```
+
+### Rust
+
+Rust で新しいウィンドウを作成するには、[`AppHandle`] または [`App`] インスタンスを使用できます。
+
+```rust
+use tauri::{WebviewUrl, WebviewWindowBuilder};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let _webview = WebviewWindowBuilder::new(
+      app,
+      "theUniqueLabel",
+      WebviewUrl::External("https://github.com/tauri-apps/tauri".parse().unwrap())
+    )
+      .title("My Tauri App")
+      .build()?;
+    Ok(())
+  })
+```
+
+[`tauri.conf.json`]: /reference/config/
+[WindowConfig API]: /reference/config/#windowconfig
+[`WebviewWindow`]: /reference/javascript/api/webviewWindow/
+[`AppHandle`]: https://docs.rs/tauri/latest/tauri/struct.AppHandle.html
+[`App`]: https://docs.rs/tauri/latest/tauri/struct.App.html

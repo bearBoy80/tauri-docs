@@ -1,0 +1,187 @@
+---
+title: システムトレイ
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+システムトレイは、通常、メニューバーまたはタスクバーのアイコンによって示される、オペレーティングシステムのUI要素です。
+
+## 作成
+
+システムトレイを作成するには、最初にアイコンを使用する必要があります。 [`tauri.conf.json`] ファイルの `app.trayIcon` オプションを使用して、デフォルトのトレイアイコンを設定できます。
+
+```json title="tauri.conf.json"
+{
+  "app": {
+    "trayIcon": "icons/icon.png"
+  }
+}
+```
+
+トレイアイコンが設定されたら、ランタイムにトレイを作成できます。
+
+### Rust
+
+Rust でトレイを作成するには、[`TrayIconBuilder`] 構造体を使用します。
+
+```rust
+use tauri::{
+  menu::{Menu, MenuItem},
+  tray::TrayIconBuilder,
+};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&quit_i])?;
+
+    let tray = TrayIconBuilder::new()
+      .menu(&menu)
+      .menu_on_left_click(true)
+      .build(app)?;
+
+    Ok(())
+  })
+```
+
+`TrayIconBuilder` は、トレイアイコン、メニュー、イベントハンドラなどを設定するための多くのメソッドを提供します。詳細は [ドキュメント](https://docs.rs/tauri/latest/tauri/tray/struct.TrayIconBuilder.html) を参照してください。
+
+### JavaScript
+
+JavaScript でトレイを作成するには、`@tauri-apps/api/tray` モジュールの [`TrayIcon`] クラスを使用します。
+
+:::note
+JavaScript からのシステムトレイの作成には、`tray:allow-create` 権限が必要です。
+:::
+
+```javascript
+import { TrayIcon } from '@tauri-apps/api/tray';
+import { Menu } from '@tauri-apps/api/menu';
+
+const menu = await Menu.new({
+  items: [
+    {
+      id: 'quit',
+      text: 'Quit',
+    },
+  ],
+});
+
+const tray = await TrayIcon.new({
+  menu,
+  menuOnLeftClick: true,
+});
+```
+
+## イベント
+
+トレイアイコンは、クリックされたときやメニュー項目が選択されたときにイベントを発行します。
+
+### Rust
+
+Rust では、`on_tray_icon_event` と `on_menu_event` を使用してこれらのイベントを処理できます。
+
+```rust
+use tauri::{
+  menu::{Menu, MenuItem},
+  tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&quit_i])?;
+
+    let tray = TrayIconBuilder::new()
+      .menu(&menu)
+      .on_menu_event(|app, event| match event.id.as_ref() {
+        "quit" => {
+          println!("quit menu item was clicked");
+          app.exit(0);
+        }
+        _ => {
+          println!("menu item {:?} was clicked", event.id);
+        }
+      })
+      .on_tray_icon_event(|tray, event| match event {
+        TrayIconEvent::Click {
+          button: MouseButton::Left,
+          button_state: MouseButtonState::Up,
+          ..
+        } => {
+          println!("left click pressed and released");
+          // このイベントでは、トレイアイコンが左クリックされたときにアプリが表示され、
+          // 再度クリックされたときに非表示になります。
+          let app = tray.app_handle();
+          if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.set_focus();
+          }
+        }
+        _ => {
+          println!("unhandled event {event:?}");
+        }
+      })
+      .build(app)?;
+
+    Ok(())
+  })
+```
+
+### JavaScript
+
+JavaScript では、`TrayIcon` コンストラクタのオプションでイベントハンドラを指定できます。
+
+:::note
+JavaScript でトレイイベントを処理するには、適切な権限を設定する必要があります。
+:::
+
+```javascript
+import { TrayIcon } from '@tauri-apps/api/tray';
+import { Menu } from '@tauri-apps/api/menu';
+
+const menu = await Menu.new({
+  items: [
+    {
+      id: 'quit',
+      text: 'Quit',
+      action: () => {
+        console.log('quit menu item was clicked');
+        // アプリケーションを終了するロジック
+      },
+    },
+  ],
+});
+
+const tray = await TrayIcon.new({
+  menu,
+  action: (event) => {
+    switch (event.type) {
+      case 'Click':
+        console.log(
+          `mouse ${event.button} button pressed, state: ${event.buttonState}`
+        );
+        break;
+      case 'DoubleClick':
+        console.log(`mouse ${event.button} button double clicked`);
+        break;
+      case 'Enter':
+        console.log(`mouse entered tray icon`);
+        break;
+      case 'Move':
+        console.log(`mouse moved over tray icon`);
+        break;
+      case 'Leave':
+        console.log(`mouse left tray icon`);
+        break;
+    }
+  },
+});
+```
+
+[`tauri.conf.json`]: /reference/config/
+[`TrayIconBuilder`]: https://docs.rs/tauri/latest/tauri/tray/struct.TrayIconBuilder.html
+[`TrayIcon`]: /reference/javascript/api/tray/

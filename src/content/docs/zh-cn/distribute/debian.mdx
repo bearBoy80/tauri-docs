@@ -1,0 +1,74 @@
+---
+title: Debian
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+`deb` 是 [Debian] 软件分发格式，它是 Debian 系统及其衍生系统（如 Ubuntu、Linux Mint 等）的本机安装程序扩展。
+
+Tauri 生成的 Debian 包可以在任何 apt 基础系统上安装，除非你的应用程序使用了目标系统上不可用的依赖项。
+
+## 构建
+
+要将你的应用程序打包为 deb 包，你可以使用 Tauri CLI 并在 Linux 计算机中运行 `tauri build` 命令：
+
+```shell
+tauri build --bundles deb
+```
+
+默认情况下，该命令将生成一个带有自定义应用程序图标的 deb 包，并设置 `Postinst` / `Postrm` 脚本以自动设置 Desktop 文件和系统图标（有关更多信息，请参阅[源代码](https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/linux/debian.rs)）。
+
+## 限制
+
+由于 Debian 包通常分发给使用不同 `glibc` 版本的系统，因此你必须使用你打算支持的最旧的基础系统构建 Tauri 应用程序。像 Ubuntu 18.04 这样相对较旧的系统比 Ubuntu 22.04 更合适，因为在 Ubuntu 22.04 上编译的二进制文件对 glibc 版本的要求更高，因此在旧系统上运行时，你会遇到像 `/usr/lib/libc.so.6: version 'GLIBC_2.33' not found` 这样的运行时错误。我们建议使用 Docker 容器或 GitHub Actions 为 Linux 构建你的 Tauri 应用程序。
+
+有关更多信息，请参阅问题 [tauri-apps/tauri#1355](https://github.com/tauri-apps/tauri/issues/1355) 和 [rust-lang/rust#57497](https://github.com/rust-lang/rust/issues/57497)，以及 [AppImage 指南](https://docs.appimage.org/reference/best-practices.html#binaries-compiled-on-old-enough-base-system)。
+
+## 配置
+
+Tauri 提供了几个选项来配置 Debian 包。你可以在 [`tauri.conf.json > bundle > linux > deb`] 中定义这些选项。
+
+### 依赖项
+
+你可以使用 `depends` 选项列出你的应用程序所需的包名称：
+
+```json title="tauri.conf.json"
+{
+  "bundle": {
+    "linux": {
+      "deb": {
+        "depends": ["curl", "libwebkit2gtk-4.0-37"]
+      }
+    }
+  }
+}
+```
+
+### 自定义文件
+
+如果你需要包含额外的自定义文件，你可以使用 `files` 选项。它是一个将目标路径映射到源路径的对象（相对于 `tauri.conf.json` 文件）：
+
+```json title="tauri.conf.json"
+{
+  "bundle": {
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/share/README.md": "../README.md", // 将 ../README.md 文件复制到 <deb_package>/usr/share/README.md
+          "/usr/assets": "../assets/" // 将整个 ../assets 目录复制到 <deb_package>/usr/assets
+        }
+      }
+    }
+  }
+}
+```
+
+:::note
+
+请注意，目标路径目前必须以 `/usr/` 开头。
+
+:::
+
+[Debian]: https://www.debian.org/doc/manuals/debian-faq/pkg-basics.en.html
+[`tauri.conf.json > bundle > linux > deb`]: /zh-cn/reference/config/#deb

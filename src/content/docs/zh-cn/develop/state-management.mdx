@@ -1,0 +1,189 @@
+---
+title: 状态管理
+i18nReady: true
+---
+
+在 Tauri 应用程序中，你通常需要跟踪应用程序的当前状态或管理与之相关的生命周期。Tauri 提供了一种简单的方法来使用 [`Manager`] API 管理应用程序的状态，并在调用命令时读取它。
+
+这是一个简单的例子：
+
+```rust
+use tauri::{Builder, Manager};
+
+struct AppData {
+  welcome_message: &'static str,
+}
+
+fn main() {
+  Builder::default()
+    .setup(|app| {
+      app.manage(AppData {
+        welcome_message: "欢迎使用 Tauri！",
+      });
+      Ok(())
+    })
+    .run(tauri::generate_context!())
+    .unwrap();
+}
+```
+
+稍后，你可以使用实现 [`Manager`] 特征的任何类型访问你的状态，例如 [`App`] 实例：
+
+```rust
+let data = app.state::<AppData>();
+```
+
+有关更多信息，包括在命令中访问状态，请参阅 [访问状态](#访问状态) 部分。
+
+## 可变性
+
+在 Rust 中，你不能直接改变在多个线程之间共享的值，或者当所有权通过 [`Arc`]（或 Tauri 的 [`State`]）等共享指针控制时。这样做可能会导致数据竞争（例如，两次写入同时发生）。
+
+为了解决这个问题，你可以使用一种称为 [内部可变性](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html) 的概念。例如，标准库的 [`Mutex`] 可以用来包装你的状态。这允许你在需要修改值时锁定它，并在完成后解锁它。
+
+```rust
+use std::sync::Mutex;
+
+use tauri::{Builder, Manager};
+
+#[derive(Default)]
+struct AppState {
+  counter: u32,
+}
+
+fn main() {
+  Builder::default()
+    .setup(|app| {
+      app.manage(Mutex::new(AppState::default()));
+      Ok(())
+    })
+    .run(tauri::generate_context!())
+    .unwrap();
+}
+```
+
+现在可以通过锁定互斥锁来修改状态：
+
+```rust
+let state = app.state::<Mutex<AppState>>();
+
+// 锁定互斥锁以获得可变访问权限：
+let mut state = state.lock().unwrap();
+
+// 修改状态：
+state.counter += 1;
+```
+
+在作用域结束时，或者当 `MutexGuard` 被丢弃时，互斥锁会自动解锁，以便应用程序的其他部分可以访问和改变其中的数据。
+
+### 何时使用异步互斥锁
+
+引用 [Tokio 文档](https://docs.rs/tokio/latest/tokio/sync/struct.Mutex.html#which-kind-of-mutex-should-you-use)，通常使用标准库的 [`Mutex`] 而不是像 Tokio 提供的那样的异步互斥锁是可以的：
+
+> 与普遍看法相反，在异步代码中使用标准库中的普通互斥锁是可以的，而且通常是首选……异步互斥锁的主要用例是提供对 IO 资源（如数据库连接）的共享可变访问。
+
+完全阅读链接的文档以了解两者之间的权衡是个好主意。你 _需要_ 异步互斥锁的一个原因是你需要在 await 点之间持有 `MutexGuard`。
+
+### 你需要 `Arc` 吗？
+
+在 Rust 中经常看到 [`Arc`] 用于在多个线程之间共享值的所有权（通常与 [`Mutex`] 配对，形式为 `Arc<Mutex<T>>`）。但是，对于存储在 [`State`] 中的东西，你不需要使用 [`Arc`]，因为 Tauri 会为你做这件事。
+
+如果 `State` 的生命周期要求阻止你将状态移动到新线程中，你可以将 `AppHandle` 移动到线程中，然后如下面的“[使用 Manager 特征访问状态](#使用-manager-特征访问状态)”部分所示检索你的状态。`AppHandle` 对于这种用例来说克隆成本很低。
+
+## 访问状态
+
+### 在命令中访问状态
+
+```rust
+#[tauri::command]
+fn increase_counter(state: State<'_, Mutex<AppState>>) -> u32 {
+  let mut state = state.lock().unwrap();
+  state.counter += 1;
+  state.counter
+}
+```
+
+有关命令的更多信息，请参阅 [从前端调用 Rust](/zh-cn/develop/calling-rust/)。
+
+#### 异步命令
+
+如果你正在使用 `async` 命令并想使用 Tokio 的异步 [`Mutex`](https://docs.rs/tokio/latest/tokio/sync/struct.Mutex.html)，你可以以相同的方式设置它并像这样访问状态：
+
+```rust
+#[tauri::command]
+async fn increase_counter(state: State<'_, Mutex<AppState>>) -> Result<u32, ()> {
+  let mut state = state.lock().await;
+  state.counter += 1;
+  Ok(state.counter)
+}
+```
+
+请注意，如果你使用异步命令，返回类型必须是 [`Result`]。
+
+### 使用 [`Manager`] 特征访问状态
+
+有时你可能需要在命令之外访问状态，例如在不同的线程中或在像 `on_window_event` 这样的事件处理程序中。在这种情况下，你可以使用实现 [`Manager`] 特征的类型（如 `AppHandle`）的 `state()` 方法来获取状态：
+
+```rust
+use std::sync::Mutex;
+use tauri::{Builder, Window, WindowEvent, Manager};
+
+#[derive(Default)]
+struct AppState {
+  counter: u32,
+}
+
+// 在事件处理程序中：
+fn on_window_event(window: &Window, _event: &WindowEvent) {
+    // 获取应用程序的句柄，以便我们可以获取全局状态。
+    let app_handle = window.app_handle();
+    let state = app_handle.state::<Mutex<AppState>>();
+
+    // 锁定互斥锁以可变地访问状态。
+    let mut state = state.lock().unwrap();
+    state.counter += 1;
+}
+
+fn main() {
+  Builder::default()
+    .setup(|app| {
+      app.manage(Mutex::new(AppState::default()));
+      Ok(())
+    })
+    .on_window_event(on_window_event)
+    .run(tauri::generate_context!())
+    .unwrap();
+}
+```
+
+当你不依赖命令注入时，此方法很有用。例如，如果你需要将状态移动到线程中，在该线程中使用 `AppHandle` 更容易，或者如果你不在命令上下文中。
+
+## 类型不匹配
+
+:::caution
+如果对 [`State`] 参数使用了错误的类型，你将得到运行时 panic 而不是编译时错误。
+
+例如，如果你使用 `State<'_, AppState>` 而不是 `State<'_, Mutex<AppState>>`，则不会有该类型管理的状态。
+:::
+
+如果你愿意，你可以用类型别名包装你的状态以防止此错误：
+
+```rust
+use std::sync::Mutex;
+
+#[derive(Default)]
+struct AppStateInner {
+  counter: u32,
+}
+
+type AppState = Mutex<AppStateInner>;
+```
+
+但是，请确保按原样使用类型别名，而不是第二次将其包装在 [`Mutex`] 中，否则你会遇到同样的问题。
+
+[`Manager`]: https://docs.rs/tauri/latest/tauri/trait.Manager.html
+[`State`]: https://docs.rs/tauri/latest/tauri/struct.State.html
+[`Mutex`]: https://doc.rust-lang.org/stable/std/sync/struct.Mutex.html
+[`Arc`]: https://doc.rust-lang.org/stable/std/sync/struct.Arc.html
+[`App`]: https://docs.rs/tauri/latest/tauri/struct.App.html
+[`Result`]: https://doc.rust-lang.org/stable/std/result/index.html

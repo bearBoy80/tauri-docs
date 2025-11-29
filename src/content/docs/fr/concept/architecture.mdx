@@ -1,0 +1,187 @@
+---
+title: Architecture Tauri
+sidebar:
+  order: 0
+i18nReady: true
+---
+
+## Introduction
+
+Tauri est une boîte à outils polyglotte et générique qui est très composable et permet aux ingénieurs de créer une grande variété d'applications. Elle est utilisée pour créer des applications pour ordinateurs de bureau en utilisant une combinaison d'outils Rust et de HTML rendu dans un Webview. Les applications construites avec Tauri peuvent être livrées avec un nombre quelconque de pièces d'une API JS optionnelle et d'une API Rust afin que les webviews puissent contrôler le système via le passage de messages. Les développeurs peuvent étendre l'API par défaut avec leurs propres fonctionnalités et relier facilement la Webview et le backend basé sur Rust.
+
+Les applications Tauri peuvent avoir des [interfaces de type plateau](/fr/learn/system-tray/). Elles peuvent être [mises à jour](/fr/plugin/updater/) et sont gérées par le système d'exploitation de l'utilisateur comme prévu. Elles sont très petites car elles utilisent la webview de l'OS. Elles ne livrent pas de runtime puisque le binaire final est compilé à partir de Rust. Cela rend la [rétro-ingénierie des applications Tauri une tâche non triviale](/fr/security/).
+
+### Ce que Tauri n'est pas
+
+Tauri n'est pas un wrapper de noyau léger. Au lieu de cela, il utilise directement [WRY](#wry) et [TAO](#tao) pour faire le gros du travail en effectuant des appels système à l'OS.
+
+Tauri n'est pas une VM ou un environnement virtualisé. Au lieu de cela, c'est une boîte à outils d'application qui permet de créer des applications OS Webview.
+
+## Écosystème principal
+
+<figure>
+
+```d2 sketch pad=50
+direction: up
+
+Core: {
+  shape: rectangle
+  "tauri": {
+    "tauri-runtime"
+    "tauri-macros"
+    "tauri-utils"
+  }
+
+  "tauri-build"
+  "tauri-codegen"
+  "tauri-runtime-wry"
+}
+
+Upstream: {
+  shape: rectangle
+  direction: right
+  WRY
+  TAO
+}
+
+Core."tauri"."tauri-runtime" -> Core."tauri-runtime-wry"{style.animated: true}
+
+Upstream.WRY -> Upstream.TAO{style.animated: true}
+Core."tauri-runtime-wry" -> Upstream.Wry {style.animated: true}
+```
+
+<figcaption>Représentation simplifiée de l'architecture Tauri.</figcaption>
+</figure>
+
+### tauri
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri)
+
+C'est le crate majeur qui maintient tout ensemble. Il rassemble les runtimes, les macros, les utilitaires et l'API en un seul produit final. Il lit le fichier [`tauri.conf.json`](/fr/reference/config/) au moment de la compilation pour apporter des fonctionnalités et entreprendre la configuration réelle de l'application (et même le fichier `Cargo.toml` dans le dossier du projet). Il gère l'injection de scripts (pour les polyfills / révision de prototype) au moment de l'exécution, héberge l'API pour l'interaction des systèmes et gère même le processus de mise à jour.
+
+### tauri-runtime
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-runtime)
+
+La couche de liaison entre Tauri lui-même et les bibliothèques webview de bas niveau.
+
+### tauri-macros
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-macros)
+
+Crée des macros pour le contexte, le gestionnaire et les commandes en exploitant le crate [`tauri-codegen`](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-codegen).
+
+### tauri-utils
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-utils)
+
+Code commun réutilisé à de nombreux endroits et offrant des utilitaires utiles comme l'analyse des fichiers de configuration, la détection des triplets de plateforme, l'injection du CSP et la gestion des actifs.
+
+### tauri-build
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-build)
+
+Applique les macros au moment de la construction pour équiper certaines fonctionnalités spéciales requises par `cargo`.
+
+### tauri-codegen
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-codegen)
+
+Intègre, hache et compresse les actifs, y compris les icônes pour l'application ainsi que la barre d'état système. Analyse [`tauri.conf.json`](/fr/reference/config/) au moment de la compilation et génère la structure Config.
+
+### tauri-runtime-wry
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-runtime-wry)
+
+Ce crate ouvre des interactions directes au niveau du système spécifiquement pour WRY, telles que l'impression, la détection de moniteur et d'autres tâches liées au fenêtrage.
+
+## Outillage Tauri
+
+### API (JavaScript / TypeScript)
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/packages/api)
+
+Une bibliothèque typescript qui crée des points de terminaison JavaScript `cjs` et `esm` à importer dans votre framework frontend afin que la Webview puisse appeler et écouter l'activité du backend. Elle est également livrée en typescript pur, car pour certains frameworks c'est plus optimal. Elle utilise le passage de messages des webviews à leurs hôtes.
+
+### Bundler (Rust / Shell)
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-bundler)
+
+Une bibliothèque qui construit une application Tauri pour la plateforme qu'elle détecte ou qu'on lui indique. Prend actuellement en charge macOS, Windows et Linux - mais prendra bientôt en charge les plateformes mobiles. Peut être utilisée en dehors des projets Tauri.
+
+### cli.rs (Rust)
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-cli)
+
+Cet exécutable Rust fournit l'interface complète pour toutes les activités requises pour lesquelles la CLI est nécessaire. Il fonctionne sur macOS, Windows et Linux.
+
+### cli.js (JavaScript)
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri/tree/dev/packages/cli)
+
+Wrapper autour de [`cli.rs`](https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-cli) utilisant [`napi-rs`](https://github.com/napi-rs/napi-rs) pour produire des paquets npm pour chaque plateforme.
+
+### create-tauri-app (JavaScript)
+
+[Voir sur GitHub](https://github.com/tauri-apps/create-tauri-app)
+
+Une boîte à outils qui permettra aux équipes d'ingénierie de créer rapidement un nouveau projet `tauri-apps` en utilisant le framework frontend de leur choix (tant qu'il a été configuré).
+
+## Crates en amont
+
+L'organisation Tauri-Apps maintient deux crates "en amont" de Tauri, à savoir TAO pour créer et gérer les fenêtres d'application, et WRY pour l'interface avec la Webview qui vit dans la fenêtre.
+
+### TAO
+
+[Voir sur GitHub](https://github.com/tauri-apps/tao)
+
+Bibliothèque de création de fenêtres d'application multiplateforme en Rust qui prend en charge toutes les principales plateformes comme Windows, macOS, Linux, iOS et Android. Écrite en Rust, c'est un fork de [winit](https://github.com/rust-windowing/winit) que nous avons étendu pour nos propres besoins - comme la barre de menu et la barre d'état système.
+
+### WRY
+
+[Voir sur GitHub](https://github.com/tauri-apps/wry)
+
+WRY est une bibliothèque de rendu WebView multiplateforme en Rust qui prend en charge toutes les principales plateformes de bureau comme Windows, macOS et Linux.
+Tauri utilise WRY comme couche abstraite responsable de déterminer quelle webview est utilisée (et comment les interactions sont faites).
+
+## Outillage supplémentaire
+
+### tauri-action
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri-action)
+
+Workflow GitHub qui construit des binaires Tauri pour toutes les plateformes. Permet même de créer une application Tauri (très basique) même si Tauri n'est pas configuré.
+
+### tauri-vscode
+
+[Voir sur GitHub](https://github.com/tauri-apps/tauri-vscode)
+
+Ce projet améliore l'interface de Visual Studio Code avec plusieurs fonctionnalités agréables à avoir.
+
+### vue-cli-plugin-tauri
+
+[Voir sur GitHub](https://github.com/tauri-apps/vue-cli-plugin-tauri)
+
+Vous permet d'installer très rapidement Tauri dans un projet vue-cli.
+
+## Plugins
+
+[Guide des plugins Tauri](/fr/develop/plugins/)
+
+De manière générale, les plugins sont créés par des tiers (bien qu'il puisse y avoir des plugins officiels et pris en charge). Un plugin fait généralement 3 choses :
+
+1. Permet au code Rust de faire "quelque chose".
+2. Fournit une interface de liaison pour faciliter l'intégration dans une application.
+3. Fournit une API JavaScript pour l'interface avec le code Rust.
+
+Voici quelques exemples de plugins Tauri :
+
+- [tauri-plugin-fs](https://github.com/tauri-apps/tauri-plugin-fs)
+- [tauri-plugin-sql](https://github.com/tauri-apps/tauri-plugin-sql)
+- [tauri-plugin-stronghold](https://github.com/tauri-apps/tauri-plugin-stronghold)
+
+## Licence
+
+Tauri lui-même est sous licence MIT ou Apache-2.0. Si vous le reconditionnez et modifiez le code source, il est de votre responsabilité de vérifier que vous respectez toutes les licences en amont. Tauri est fourni TEL QUEL sans aucune réclamation explicite d'adéquation à un usage quelconque.
+
+Ici vous pouvez consulter notre [Nomenclature logicielle](https://app.fossa.com/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri).

@@ -1,0 +1,122 @@
+---
+title: Microsoft Store
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+Microsoft Store 是由 Microsoft 运营的 Windows 应用程序商店。
+
+本指南仅涵盖直接向 Microsoft Store 分发 Windows 应用程序的详细信息。
+有关 Windows 安装程序分发选项和配置的更多信息，请参阅 [Windows 安装程序指南][Windows Installer guide]。
+
+## 要求
+
+要在 Microsoft Store 上发布应用程序，你必须拥有 Microsoft 帐户
+并以个人或公司身份 [注册][enroll] 为开发人员。
+
+## 更改应用程序图标
+
+Tauri CLI 可以生成你的应用程序所需的所有图标，包括 Microsoft Store 图标。
+使用 `tauri icon` 命令从单个 PNG 或 SVG 源生成应用程序图标：
+
+<CommandTabs
+  npm="npm run tauri icon /path/to/app-icon.png"
+  yarn="yarn tauri icon /path/to/app-icon.png"
+  pnpm="pnpm tauri icon /path/to/app-icon.png"
+  deno="deno task tauri icon /path/to/app-icon.png"
+  bun="bun tauri icon /path/to/app-icon.png"
+  cargo="cargo tauri icon /path/to/app-icon.png"
+/>
+
+## 设置
+
+在使用 Microsoft 帐户注册为开发人员后，你需要在 [应用和游戏][Apps and Games] 页面中注册你的应用。
+点击 `New Product`，选择 `EXE or MSI app` 并为你的应用保留一个唯一的名称。
+
+## 构建和上传
+
+目前 Tauri 仅生成 [EXE 和 MSI][Windows Installer guide] 安装程序，因此你必须创建一个 Microsoft Store 应用程序
+仅链接到解压后的应用程序。
+Microsoft Installer 中链接的安装程序必须是离线的，[处理自动更新][handle auto-updates] 并且 [已代码签名][code signed]。
+
+有关更多信息，请参阅 [官方发布文档][official publish documentation]。
+
+### 离线安装程序
+
+通过 Microsoft Store 分发的 Windows 安装程序必须使用 [离线安装程序][Offline Installer] Webview2 安装选项。
+
+要仅在为 Microsoft Store 打包时应用此安装程序配置，你可以定义一个单独的 Tauri 配置文件：
+
+```json title="src-tauri/tauri.microsoftstore.conf.json
+{
+  "bundle": {
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller"
+      }
+    }
+  }
+}
+```
+
+然后在为 Microsoft Store 打包 Tauri 应用程序时将该配置文件与主配置文件合并：
+
+<CommandTabs
+  npm="npm run tauri build -- --no-bundle
+npm run tauri bundle -- --config src-tauri/tauri.microsoftstore.conf.json"
+  yarn="yarn tauri build --no-bundle
+yarn tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+  pnpm="pnpm tauri build --no-bundle
+pnpm tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+  deno="deno task tauri build --no-bundle
+deno task tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+  bun="bun tauri build --no-bundle
+bun tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+  cargo="cargo tauri build --no-bundle
+cargo tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+/>
+
+这在设置 CI/CD 以将应用程序上传到 Microsoft Store 同时为你在应用商店外分发的 Windows 安装程序拥有单独的配置时特别有用。
+
+### 发布者
+
+你的应用程序 [发布者][publisher] 名称不能与应用程序产品名称匹配。
+
+如果未设置发布者配置值，Tauri 将从你的包标识符的第二部分派生它。
+由于发布者名称不能与产品名称匹配，因此以下配置无效：
+
+```json title=tauri.conf.json "example" "Example"
+{
+  "productName": "Example",
+  "identifier": "com.example.app"
+}
+```
+
+在这种情况下，你可以单独定义 [publisher] 值以修复此冲突：
+
+```json title=tauri.conf.json ins={4-6}
+{
+  "productName": "Example",
+  "identifier": "com.example.app",
+  "bundle": {
+    "publisher": "Example Inc."
+  }
+}
+```
+
+### 上传
+
+为 Microsoft Store 构建 Windows 安装程序后，你可以将其上传到你选择的分发服务
+并在 Microsoft Store 网站的应用程序页面中链接它。
+
+[Windows Installer guide]: /zh-cn/distribute/windows-installer/
+[enroll]: https://learn.microsoft.com/en-us/windows/apps/get-started/sign-up
+[Apps and Games]: https://partner.microsoft.com/en-us/dashboard/apps-and-games/overview
+[handle auto-updates]: /zh-cn/plugin/updater/
+[code signed]: /zh-cn/distribute/sign/windows/
+[Offline Installer]: /zh-cn/distribute/windows-installer/#offline-installer
+[official publish documentation]: https://learn.microsoft.com/en-us/windows/apps/publish/
+[publisher]: /zh-cn/reference/config/#publisher

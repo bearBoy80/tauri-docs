@@ -1,0 +1,262 @@
+---
+title: Desarrollar
+description: Conceptos básicos para desarrollar con Tauri.
+sidebar:
+  label: Descripción general
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+Ahora que tienes [todo configurado](/es/start/), estás listo para ejecutar tu aplicación usando Tauri.
+
+Si estás utilizando un framework de UI o un empaquetador de JavaScript, es probable que tengas acceso a un servidor de desarrollo
+que acelerará tu proceso de desarrollo, así que si no has configurado la URL de desarrollo de tu aplicación y el script
+que la inicia, puedes hacerlo a través de los valores de configuración [devUrl](/es/reference/config/#devurl) y
+[beforeDevCommand](/es/reference/config/#beforedevcommand):
+
+```json title=tauri.conf.json
+{
+  "build": {
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "npm run dev"
+  }
+}
+```
+
+:::note
+
+Cada framework tiene sus propias herramientas de desarrollo. Está fuera del alcance de este documento cubrirlos todos o mantenerse actualizado.
+
+Consulta la documentación de tu framework para obtener más información y determinar los valores correctos que se deben configurar.
+
+:::
+
+De lo contrario, si no estás utilizando un framework de UI o un empaquetador de módulos, puedes apuntar Tauri a tu código fuente frontend
+y la CLI de Tauri iniciará un servidor de desarrollo por ti:
+
+```json title=tauri.conf.json
+{
+  "build": {
+    "frontendDist": "./src"
+  }
+}
+```
+
+Ten en cuenta que en este ejemplo, la carpeta `src` debe incluir un archivo `index.html` junto con cualquier otro activo cargado por tu frontend.
+
+:::caution[Seguridad del servidor de desarrollo simple/vainilla]
+
+El servidor de desarrollo Tauri integrado no admite autenticación mutua
+ni cifrado. Nunca debes usarlo para desarrollo en redes no confiables.
+Consulta las [consideraciones de seguridad del servidor de desarrollo](/es/security/lifecycle/#development-server)
+para obtener una explicación más detallada.
+
+:::
+
+### Desarrollar tu aplicación de escritorio
+
+Para desarrollar tu aplicación para escritorio, ejecuta el comando `tauri dev`.
+
+<CommandTabs
+  npm="npm run tauri dev"
+  yarn="yarn tauri dev"
+  pnpm="pnpm tauri dev"
+  deno="deno task tauri dev"
+  bun="bun tauri dev"
+  cargo="cargo tauri dev"
+/>
+
+La primera vez que ejecutes este comando, es posible que el administrador de paquetes de Rust necesite **varios minutos** para descargar y compilar todos los paquetes requeridos.
+Dado que se almacenan en caché, las compilaciones posteriores son mucho más rápidas, ya que solo es necesario recompilar tu código.
+
+Una vez que Rust haya terminado de compilar, se abre la vista web, mostrando tu aplicación web.
+Puedes realizar cambios en tu aplicación web y, si tus herramientas lo admiten, la vista web debería actualizarse automáticamente, al igual que un navegador.
+
+#### Abrir el inspector web
+
+Puedes abrir el inspector web para depurar tu aplicación haciendo clic derecho en la vista web y haciendo clic en "Inspeccionar" o
+usando el acceso directo `Ctrl + Shift + I` en Windows y Linux o el acceso directo `Cmd + Option + I` en macOS.
+
+### Desarrollar tu aplicación móvil
+
+El desarrollo para dispositivos móviles es similar a cómo funciona el desarrollo de escritorio, pero debes ejecutar `tauri android dev` o `tauri ios dev` en su lugar:
+
+<CommandTabs
+  npm="npm run tauri [android|ios] dev"
+  yarn="yarn tauri [android|ios] dev"
+  pnpm="pnpm tauri [android|ios] dev"
+  deno="deno task tauri [android|ios] dev"
+  bun="bun tauri [android|ios] dev"
+  cargo="cargo tauri [android|ios] dev"
+/>
+
+La primera vez que ejecutes este comando, es posible que el administrador de paquetes de Rust necesite **varios minutos** para descargar y compilar todos los paquetes requeridos.
+Dado que se almacenan en caché, las compilaciones posteriores son mucho más rápidas, ya que solo es necesario recompilar tu código.
+
+#### Servidor de desarrollo
+
+El servidor de desarrollo en dispositivos móviles funciona de manera similar al de escritorio, pero si intentas ejecutarlo en un dispositivo iOS físico,
+debes configurarlo para escuchar una dirección particular proporcionada por la CLI de Tauri, definida en la variable de entorno `TAURI_DEV_HOST`.
+Esta dirección es una dirección de red pública (que es el comportamiento predeterminado) o la dirección TUN del dispositivo iOS real, que es más segura, pero actualmente
+necesita Xcode para conectarse al dispositivo.
+
+Para usar la dirección del dispositivo iOS, debes abrir Xcode antes de ejecutar el comando de desarrollo y asegurarte de que tu dispositivo
+esté conectado a través de la red en el menú Window > Devices and Simulators.
+Luego debes ejecutar `tauri ios dev --force-ip-prompt` para seleccionar la dirección del dispositivo iOS (una dirección IPv6 que termina con **::2**).
+
+Para que tu servidor de desarrollo escuche en el host correcto para que sea accesible por el dispositivo iOS, debes modificar su configuración
+para usar el valor `TAURI_DEV_HOST` si se ha proporcionado. Aquí hay un ejemplo de configuración para Vite:
+
+```js
+import { defineConfig } from 'vite';
+
+const host = process.env.TAURI_DEV_HOST;
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  clearScreen: false,
+  server: {
+    host: host || false,
+    port: 1420,
+    strictPort: true,
+    hmr: host
+      ? {
+          protocol: 'ws',
+          host,
+          port: 1421,
+        }
+      : undefined,
+  },
+});
+```
+
+Consulta la guía de configuración de tu framework para obtener más información.
+
+:::note
+Los proyectos creados con [create-tauri-app](https://github.com/tauri-apps/create-tauri-app) configuran
+tu servidor de desarrollo para el desarrollo móvil desde el principio.
+:::
+
+#### Selección de dispositivo
+
+De forma predeterminada, el comando de desarrollo móvil intenta ejecutar tu aplicación en un dispositivo conectado,
+y recurre a pedirte que selecciones un simulador para usar.
+Para definir el objetivo de ejecución por adelantado, puedes proporcionar el nombre del dispositivo o simulador como argumento:
+
+<CommandTabs
+  npm="npm run tauri ios dev 'iPhone 15'"
+  yarn="yarn tauri ios dev 'iPhone 15'"
+  pnpm="pnpm tauri ios dev 'iPhone 15'"
+  deno="deno task tauri ios dev 'iPhone 15'"
+  bun="bun tauri ios dev 'iPhone 15'"
+  cargo="cargo tauri ios dev 'iPhone 15'"
+/>
+
+#### Usando Xcode o Android Studio
+
+Alternativamente, puedes elegir usar Xcode o Android Studio para desarrollar tu aplicación.
+Esto puede ayudarte a solucionar algunos problemas de desarrollo utilizando el IDE en lugar de las herramientas de línea de comandos.
+Para abrir el IDE móvil en lugar de ejecutar en un dispositivo o simulador conectado, usa la bandera `--open`:
+
+<CommandTabs
+  npm="npm run tauri [android|ios] dev --open"
+  yarn="yarn tauri [android|ios] dev --open"
+  pnpm="pnpm tauri [android|ios] dev --open"
+  deno="deno task tauri [android|ios] dev --open"
+  bun="bun tauri [android|ios] dev --open"
+  cargo="cargo tauri [android|ios] dev --open"
+/>
+
+:::note
+Si tienes la intención de ejecutar la aplicación en un dispositivo iOS físico, también debes proporcionar el argumento `--host`
+y tu servidor de desarrollo debe usar el valor `process.env.TAURI_DEV_HOST` como host.
+Consulta la guía de configuración de tu framework para obtener más información.
+
+<CommandTabs
+  npm="npm run tauri [android|ios] dev --open --host"
+  yarn="yarn tauri [android|ios] dev --open --host"
+  pnpm="pnpm tauri [android|ios] dev --open --host"
+  deno="deno task tauri [android|ios] dev --open --host"
+  bun="bun tauri [android|ios] dev --open --host"
+  cargo="cargo tauri [android|ios] dev --open --host"
+/>
+:::
+
+:::caution
+Para usar Xcode o Android Studio, el proceso CLI de Tauri **debe** estar ejecutándose y **no puede** ser eliminado.
+Se recomienda usar el comando `tauri [android|ios] dev --open` y mantener el proceso activo hasta que cierres el IDE.
+:::
+
+#### Abrir el inspector web
+
+- iOS
+
+  Se debe usar Safari para acceder al inspector web de tu aplicación iOS.
+
+  Abre Safari en tu máquina Mac, elige **Safari > Ajustes** en la barra de menú, haz clic en **Avanzado**, luego selecciona **Mostrar funciones para desarrolladores web**.
+
+  Si estás ejecutando en un dispositivo físico, debes habilitar **Inspector web** en **Ajustes > Safari > Avanzado**.
+
+  Después de seguir todos los pasos, deberías ver un menú **Desarrollo** en Safari, donde encontrarás los dispositivos conectados y las aplicaciones para inspeccionar.
+  Selecciona tu dispositivo o simulador y haz clic en **localhost** para abrir la ventana de Herramientas para desarrolladores de Safari.
+
+- Android
+
+  El inspector está habilitado de forma predeterminada para los emuladores de Android, pero debes habilitarlo para dispositivos físicos.
+  Conecta tu dispositivo Android a la computadora, abre la aplicación **Ajustes** en el dispositivo Android, selecciona **Acerca de**, desplázate hasta Número de compilación y tócalo 7 veces.
+  Esto habilitará el modo de desarrollador para tu dispositivo Android y la configuración de **Opciones de desarrollador**.
+
+  Para habilitar la depuración de aplicaciones en tu dispositivo, debes ingresar a la configuración de **Opciones de desarrollador**, activar el interruptor de opciones de desarrollador
+  y habilitar **Depuración por USB**.
+
+  :::note
+  Cada distribución de Android tiene su propia forma de habilitar el modo de desarrollador, consulta la documentación de tu fabricante para obtener más información.
+  :::
+
+  El inspector web para Android funciona con DevTools de Google Chrome y se puede acceder navegando a `chrome://inspect` en el navegador Chrome de tu computadora.
+  Tu dispositivo o emulador debería aparecer en la lista de dispositivos remotos si tu aplicación de Android se está ejecutando, y puedes abrir las herramientas de desarrollador
+  haciendo clic en **inspeccionar** en la entrada que coincida con tu dispositivo.
+
+#### Solución de problemas
+
+1. Error al ejecutar el script de compilación en Xcode
+
+Tauri se conecta al proyecto iOS Xcode creando una fase de compilación que ejecuta la CLI de Tauri para compilar la fuente de Rust
+como una biblioteca que se carga en tiempo de ejecución. La fase de compilación se ejecuta en el contexto del proceso de Xcode, por lo que es posible que no pueda
+usar modificaciones de shell como adiciones de PATH, así que ten cuidado al usar herramientas como administradores de versiones de Node.js que pueden no ser compatibles.
+
+2. Solicitud de permiso de red en la primera ejecución de la aplicación iOS
+
+La primera vez que ejecutes `tauri ios dev`, es posible que veas que iOS te pide permiso para buscar y conectarse
+a dispositivos en tu red local. Este permiso es necesario porque para acceder a tu servidor de desarrollo desde un dispositivo iOS,
+debemos exponerlo en la red local. Para ejecutar tu aplicación en tu dispositivo, debes hacer clic en Permitir y reiniciar tu aplicación.
+
+### Reaccionar a los cambios en el código fuente
+
+De manera similar a cómo tu vista web refleja los cambios en tiempo real,
+Tauri observa tus archivos Rust en busca de cambios para que cuando modifiques cualquiera de ellos, tu aplicación se recompile y reinicie automáticamente.
+
+Puedes deshabilitar este comportamiento usando la bandera `--no-watch` en el comando `tauri dev`.
+
+Para restringir los archivos que se observan en busca de cambios, puedes crear un archivo `.taurignore` en la carpeta src-tauri.
+Este archivo funciona igual que un archivo Git ignore normal, por lo que puedes ignorar cualquier carpeta o archivo:
+
+```filename=.taurignore
+build/
+src/generated/*.rs
+deny.toml
+```
+
+### Usando las DevTools del navegador
+
+Las API de Tauri solo funcionan en la ventana de tu aplicación, por lo que una vez que comiences a usarlas, ya no podrás abrir tu frontend en el navegador de tu sistema.
+
+Si prefieres usar las herramientas de desarrollo de tu navegador, debes configurar [tauri-invoke-http](https://github.com/tauri-apps/tauri-invoke-http)
+para unir las llamadas a la API de Tauri a través de un servidor HTTP.
+
+### Control de fuente
+
+En el repositorio de tu proyecto, **DEBES** confirmar el `src-tauri/Cargo.lock` junto con el `src-tauri/Cargo.toml` en git
+porque Cargo usa el archivo de bloqueo para proporcionar compilaciones deterministas. Como resultado, se recomienda que todas las aplicaciones registren
+su `Cargo.lock`. **NO DEBES** confirmar la carpeta `src-tauri/target` ni ninguno de sus contenidos.
