@@ -1,0 +1,145 @@
+---
+title: ファイルシステム
+description: ファイルの読み取り、書き込み、その他。
+plugin: fs
+i18nReady: true
+---
+
+import PluginLinks from '@components/PluginLinks.astro';
+import Compatibility from '@components/plugins/Compatibility.astro';
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import CommandTabs from '@components/CommandTabs.astro';
+import PluginPermissions from '@components/PluginPermissions.astro';
+
+<PluginLinks plugin={frontmatter.plugin} />
+
+ファイルシステムへのアクセス、ファイルの読み取り、書き込み、一覧表示、情報の取得。
+
+## サポートされているプラットフォーム
+
+<Compatibility plugin={frontmatter.plugin} />
+
+## セットアップ
+
+ファイルシステムプラグインをインストールして開始します。
+
+<Tabs>
+    <TabItem label="自動">
+
+        プロジェクトのパッケージマネージャーを使用して依存関係を追加します。
+
+        <CommandTabs npm="npm run tauri add fs"
+                    yarn="yarn run tauri add fs"
+                    pnpm="pnpm tauri add fs"
+                    deno="deno task tauri add fs"
+                    bun="bun tauri add fs"
+                    cargo="cargo tauri add fs" />
+
+    </TabItem>
+    <TabItem label="手動">
+        <Steps>
+
+            1. `src-tauri` フォルダで次のコマンドを実行して、`Cargo.toml` のプロジェクトの依存関係にプラグインを追加します。
+
+                ```sh frame=none
+                cargo add tauri-plugin-fs
+                ```
+
+            2.  `lib.rs` を変更してプラグインを初期化します。
+
+                ```rust title="src-tauri/src/lib.rs" ins={4}
+                #[cfg_attr(mobile, tauri::mobile_entry_point)]
+                pub fn run() {
+                    tauri::Builder::default()
+                        .plugin(tauri_plugin_fs::init())
+                        .run(tauri::generate_context!())
+                        .expect("error while running tauri application");
+                }
+                ```
+
+            3.  JavaScript からファイルシステムにアクセスしたい場合は、npm パッケージもインストールします。
+
+                <CommandTabs
+                    npm="npm install @tauri-apps/plugin-fs"
+                    yarn="yarn add @tauri-apps/plugin-fs"
+                    pnpm="pnpm add @tauri-apps/plugin-fs"
+                    deno="deno add npm:@tauri-apps/plugin-fs"
+                    bun="bun add @tauri-apps/plugin-fs"
+                />
+
+        </Steps>
+    </TabItem>
+
+</Tabs>
+
+## 使用法
+
+ファイルシステムプラグインは、JavaScript と Rust の両方で使用できます。
+
+### JavaScript
+
+```javascript
+import {
+  exists,
+  readTextFile,
+  writeTextFile,
+  BaseDirectory,
+} from '@tauri-apps/plugin-fs';
+
+// `$APP_DATA/avatar.png` が存在するか確認します
+await exists('avatar.png', { baseDir: BaseDirectory.AppData });
+
+// テキストファイルを読み取ります
+const contents = await readTextFile('app.conf', {
+  baseDir: BaseDirectory.AppConfig,
+});
+
+// ファイルにテキストを書き込みます
+await writeTextFile('app.conf', 'file contents', {
+  baseDir: BaseDirectory.AppConfig,
+});
+```
+
+### Rust
+
+Rust API は `std::fs` に似ていますが、セキュリティスコープの適用が追加されています。
+
+```rust
+use tauri_plugin_fs::FsExt;
+
+let scope = app.fs_scope(); // または app_handle.fs_scope()
+
+// スコープで許可されたディレクトリ内でのみアクセス可能です
+let file_path = "/path/to/file";
+if scope.is_allowed(file_path) {
+  println!("File access allowed");
+} else {
+  println!("File access forbidden");
+}
+```
+
+## 権限
+
+デフォルトでは、すべての潜在的に危険なプラグインコマンドとスコープはブロックされており、アクセスできません。これらを有効にするには、`capabilities` 設定の権限を変更する必要があります。
+
+詳細については、[機能の概要](/security/capabilities/) と、プラグイン権限を使用するための [ステップバイステップガイド](/learn/security/using-plugin-permissions/) を参照してください。
+
+```json title="src-tauri/capabilities/default.json"
+{
+  "permissions": [
+    ...,
+    "fs:default",
+    // 権限スコープを有効にします
+    "fs:allow-app-data-recursive",
+    "fs:allow-app-config-recursive",
+    // 拡張スコープ: `$HOME/images` へのアクセスを許可します
+    {
+      "identifier": "fs:allow-home-read-recursive",
+      "allow": [{ "path": "$HOME/images" }]
+    }
+  ]
+}
+```
+
+<PluginPermissions plugin={frontmatter.plugin} />

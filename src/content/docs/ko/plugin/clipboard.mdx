@@ -1,0 +1,128 @@
+---
+title: 클립보드
+description: 시스템 클립보드를 읽고 씁니다.
+plugin: clipboard
+i18nReady: true
+---
+
+import PluginLinks from '@components/PluginLinks.astro';
+import Compatibility from '@components/plugins/Compatibility.astro';
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import CommandTabs from '@components/CommandTabs.astro';
+import PluginPermissions from '@components/PluginPermissions.astro';
+
+<PluginLinks plugin={frontmatter.plugin} />
+
+시스템 클립보드를 읽고 씁니다.
+
+## 지원되는 플랫폼
+
+<Compatibility plugin={frontmatter.plugin} />
+
+## 설정
+
+클립보드 플러그인을 설치하여 시작하십시오.
+
+<Tabs>
+    <TabItem label="자동">
+
+        프로젝트의 패키지 관리자를 사용하여 의존성을 추가하십시오:
+
+        <CommandTabs npm="npm run tauri add clipboard"
+                    yarn="yarn run tauri add clipboard"
+                    pnpm="pnpm tauri add clipboard"
+                    deno="deno task tauri add clipboard"
+                    bun="bun tauri add clipboard"
+                    cargo="cargo tauri add clipboard" />
+
+    </TabItem>
+    <TabItem label="수동">
+        <Steps>
+
+            1. `src-tauri` 폴더에서 다음 명령을 실행하여 `Cargo.toml`의 프로젝트 의존성에 플러그인을 추가하십시오:
+
+                ```sh frame=none
+                cargo add tauri-plugin-clipboard-manager
+                ```
+
+            2.  `lib.rs`를 수정하여 플러그인을 초기화하십시오:
+
+                ```rust title="src-tauri/src/lib.rs" ins={4}
+                #[cfg_attr(mobile, tauri::mobile_entry_point)]
+                pub fn run() {
+                    tauri::Builder::default()
+                        .plugin(tauri_plugin_clipboard_manager::init())
+                        .run(tauri::generate_context!())
+                        .expect("error while running tauri application");
+                }
+                ```
+
+            3.  JavaScript 게스트 바인딩을 설치하려면 원하는 JavaScript 패키지 관리자를 사용하십시오:
+
+                <CommandTabs
+                    npm="npm install @tauri-apps/plugin-clipboard-manager"
+                    yarn="yarn add @tauri-apps/plugin-clipboard-manager"
+                    pnpm="pnpm add @tauri-apps/plugin-clipboard-manager"
+                    deno="deno add npm:@tauri-apps/plugin-clipboard-manager"
+                    bun="bun add @tauri-apps/plugin-clipboard-manager"
+                />
+
+        </Steps>
+    </TabItem>
+
+</Tabs>
+
+## 사용법
+
+클립보드 플러그인은 JavaScript와 Rust 모두에서 사용할 수 있습니다.
+
+<Tabs syncKey="lang">
+<TabItem label="JavaScript">
+
+```javascript
+import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager';
+
+// 클립보드에 내용 쓰기
+await writeText('Tauri is awesome!');
+
+// 클립보드에서 내용 읽기
+const content = await readText();
+console.log(content);
+// 'Tauri is awesome!' 출력
+```
+
+</TabItem>
+<TabItem label="Rust">
+
+```rust
+use tauri_plugin_clipboard_manager::ClipboardExt;
+
+// 클립보드에 내용 쓰기
+app.clipboard().write_text("Tauri is awesome!".to_string()).unwrap();
+
+// 클립보드에서 내용 읽기
+let content = app.clipboard().read_text();
+println!("{:?}", content.unwrap());
+// 'Tauri is awesome!' 출력
+```
+
+</TabItem>
+</Tabs>
+
+## 권한
+
+기본적으로 잠재적으로 위험한 모든 플러그인 명령과 범위는 차단되어 액세스할 수 없습니다. 이를 활성화하려면 `capabilities` 구성에서 권한을 수정해야 합니다.
+
+플러그인 권한을 사용하는 방법에 대한 자세한 내용은 [기능 개요](/security/capabilities/) 및 [단계별 가이드](/learn/security/using-plugin-permissions/)를 참조하십시오.
+
+```json title="src-tauri/capabilities/default.json"
+{
+  "permissions": [
+    ...,
+    "clipboard-manager:default",
+  ]
+}
+```
+
+<PluginPermissions plugin={frontmatter.plugin} />

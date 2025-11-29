@@ -1,0 +1,40 @@
+---
+title: AUR
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+Le dépôt d'utilisateurs Arch (AUR) est un dépôt piloté par la communauté pour les utilisateurs d'Arch. Il contient des descriptions de paquets (PKGBUILDs) qui vous permettent de compiler un paquet à partir des sources avec `makepkg` et de l'installer ensuite via `pacman`.
+
+## Construction
+
+Pour construire et empaqueter votre application pour l'AUR, vous pouvez utiliser la CLI Tauri et exécuter la commande `tauri build` sur une machine Linux :
+
+```shell
+tauri build --bundles appimage,deb
+```
+
+:::note
+Vous devez avoir `appimage` et `deb` dans votre liste de `targets` dans `tauri.conf.json` pour que le script PKGBUILD généré prenne en charge ces formats.
+:::
+
+Par défaut, la commande générera un fichier `PKGBUILD` dans `src-tauri/target/release/bundle/appimage` (ou `deb` si vous n'avez pas construit l'AppImage).
+
+## Configurer le PKGBUILD
+
+Vous pouvez configurer le `PKGBUILD` généré dans `tauri.conf.json > bundle > linux > aur`.
+
+Pour une liste complète des options de configuration, voir la [documentation de configuration de l'API](/fr/reference/config/#aurconfig).
+
+:::note
+Si vous publiez sur l'AUR, assurez-vous que `homepage` et `description` sont définis dans votre `tauri.conf.json`.
+:::
+
+## Publication
+
+Pour publier votre application sur l'AUR, vous devez créer un compte sur le [site web de l'AUR](https://aur.archlinux.org/) et soumettre votre paquet. Vous pouvez trouver plus d'informations sur la façon de soumettre un paquet dans le [wiki Arch Linux](https://wiki.archlinux.org/title/AUR_submission_guidelines).
+
+:::tip
+Tauri a un support intégré pour la génération du fichier `.SRCINFO` requis pour la soumission à l'AUR. Il est généré automatiquement lors de l'exécution de `tauri build` si le bundle `appimage` ou `deb` est activé.
+:::

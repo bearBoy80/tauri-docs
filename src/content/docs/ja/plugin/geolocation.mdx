@@ -1,0 +1,172 @@
+---
+title: ジオロケーション
+description: 高度、方角、速度（利用可能な場合）に関する情報を含む、デバイスの現在位置を取得および追跡します。
+plugin: geolocation
+i18nReady: true
+---
+
+import PluginLinks from '@components/PluginLinks.astro';
+import Compatibility from '@components/plugins/Compatibility.astro';
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import CommandTabs from '@components/CommandTabs.astro';
+import PluginPermissions from '@components/PluginPermissions.astro';
+
+<PluginLinks plugin={frontmatter.plugin} />
+
+高度、方角、速度（利用可能な場合）に関する情報を含む、デバイスの現在位置を取得および追跡します。
+
+## サポートされているプラットフォーム
+
+<Compatibility plugin={frontmatter.plugin} />
+
+## セットアップ
+
+ジオロケーションプラグインをインストールして開始します。
+
+<Tabs>
+  <TabItem label="自動">
+
+    プロジェクトのパッケージマネージャーを使用して依存関係を追加します。
+
+    {' '}
+
+    <CommandTabs
+      npm="npm run tauri add geolocation"
+      yarn="yarn run tauri add geolocation"
+      pnpm="pnpm tauri add geolocation"
+      deno="deno task tauri add geolocation"
+      bun="bun tauri add geolocation"
+      cargo="cargo tauri add geolocation"
+    />
+
+  </TabItem>
+  <TabItem label="手動">
+    <Steps>
+
+      1.  `src-tauri` フォルダで次のコマンドを実行して、`Cargo.toml` のプロジェクトの依存関係にプラグインを追加します。
+
+          ```sh frame=none
+          cargo add tauri-plugin-geolocation --target 'cfg(any(target_os = "android", target_os = "ios"))'
+          ```
+
+      2.  `lib.rs` を変更してプラグインを初期化します。
+
+          ```rust title="src-tauri/src/lib.rs" ins={5-6}
+          #[cfg_attr(mobile, tauri::mobile_entry_point)]
+          pub fn run() {
+              tauri::Builder::default()
+                  .setup(|app| {
+                      #[cfg(mobile)]
+                      app.handle().plugin(tauri_plugin_geolocation::init());
+                      Ok(())
+                  })
+                  .run(tauri::generate_context!())
+                  .expect("error while running tauri application");
+          }
+          ```
+
+      3.  お好みの JavaScript パッケージマネージャーを使用して、JavaScript ゲストバインディングをインストールします。
+
+          <CommandTabs
+              npm="npm install @tauri-apps/plugin-geolocation"
+              yarn="yarn add @tauri-apps/plugin-geolocation"
+              pnpm="pnpm add @tauri-apps/plugin-geolocation"
+              deno="deno add npm:@tauri-apps/plugin-geolocation"
+              bun="bun add @tauri-apps/plugin-geolocation"
+          />
+
+    </Steps>
+
+  </TabItem>
+</Tabs>
+
+## 設定
+
+### iOS
+
+Apple は、Info.plist に位置情報のプライバシー説明を指定することを要求しています。ここでは、アプリがそれにアクセスする必要がある理由を説明する必要があります。以下は説明の例です。
+
+```xml {6-7}
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>NSLocationWhenInUseUsageDescription</key>
+        <string>XY を実行するために必要です</string>
+    </dict>
+</plist>
+```
+
+### Android
+
+このプラグインは、`AndroidManifest.xml` ファイルに次の権限を自動的に追加します。
+
+```xml
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+```
+
+アプリが機能するために GPS 機能が必要な場合は、`AndroidManifest.xml` ファイルに以下を追加する必要があります。
+
+```xml
+<uses-feature android:name="android.hardware.location.gps" android:required="true" />
+```
+
+Google Play ストアは、このプロパティを使用して、GPS 機能のないデバイスにアプリを表示するかどうかを決定します。
+
+## 使用法
+
+ジオロケーションプラグインは JavaScript で利用できます。
+
+```javascript
+import {
+  checkPermissions,
+  requestPermissions,
+  getCurrentPosition,
+  watchPosition,
+} from '@tauri-apps/plugin-geolocation';
+
+let permissions = await checkPermissions();
+if (
+  permissions.location === 'prompt' ||
+  permissions.location === 'prompt-with-rationale'
+) {
+  permissions = await requestPermissions(['location']);
+}
+
+if (permissions.location === 'granted') {
+  const pos = await getCurrentPosition();
+
+  await watchPosition(
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    (pos) => {
+      console.log(pos);
+    }
+  );
+}
+```
+
+## 権限
+
+デフォルトでは、すべての潜在的に危険なプラグインコマンドとスコープはブロックされており、アクセスできません。これらを有効にするには、`capabilities` 設定の権限を変更する必要があります。
+
+詳細については、[機能の概要](/security/capabilities/) と、プラグイン権限を使用するための [ステップバイステップガイド](/learn/security/using-plugin-permissions/) を参照してください。
+
+```json title="src-tauri/capabilities/mobile.json" ins={7-11}
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile-capability",
+  "windows": ["main"],
+  "platforms": ["iOS", "android"],
+  "permissions": [
+    "core:default",
+    "geolocation:allow-check-permissions",
+    "geolocation:allow-request-permissions",
+    "geolocation:allow-get-current-position",
+    "geolocation:allow-watch-position"
+  ]
+}
+```
+
+<PluginPermissions plugin={frontmatter.plugin} />

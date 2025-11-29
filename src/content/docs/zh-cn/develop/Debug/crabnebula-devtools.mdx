@@ -1,0 +1,52 @@
+---
+title: CrabNebula DevTools
+sidebar:
+  badge:
+    text: New
+    variant: tip
+i18nReady: true
+---
+
+import { Image } from 'astro:assets';
+import devToolsPrint from '@assets/develop/Debug/crabnebula-devtools.png';
+
+[CrabNebula](https://crabnebula.dev/) 作为与 Tauri 项目合作的一部分，为 Tauri 提供了一个免费的 [DevTools](https://crabnebula.dev/devtools/) 应用程序。此应用程序允许您通过捕获其嵌入式资产、Tauri 配置文件、日志和跨度来检测您的 Tauri 应用程序，并提供一个 Web 前端来无缝地实时可视化数据。
+
+使用 CrabNebula DevTools，您可以检查应用程序的日志事件（包括来自依赖项的日志），跟踪命令调用和整体 Tauri API 使用情况的性能，并通过一个特殊的界面查看 Tauri 事件和命令，包括有效负载、响应以及内部日志和执行跨度。
+
+要启用 CrabNebula DevTools，请安装 devtools crate：
+
+```sh frame=none
+cargo add tauri-plugin-devtools@2.0.0
+```
+
+并在您的 main 函数中尽快初始化插件：
+
+```rust
+fn main() {
+    // 这应该在应用程序执行时尽早调用
+    #[cfg(debug_assertions)] // 仅在开发版本中启用检测
+    let devtools = tauri_plugin_devtools::init();
+
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(devtools);
+    }
+
+    builder
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+```
+
+然后照常运行您的应用程序，如果一切设置正确，devtools 将打印以下消息：
+
+<Image src={devToolsPrint} alt="DevTools message on terminal" />
+
+:::note
+在这种情况下，我们仅为调试应用程序初始化 devtools 插件，这也是推荐的做法。
+:::
+
+有关更多信息，请参阅 [CrabNebula DevTools](https://docs.crabnebula.dev/devtools/get-started/) 文档。
