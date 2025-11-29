@@ -1,0 +1,177 @@
+---
+title: スプラッシュスクリーン
+description: アプリケーションの初期化中に一時的なウィンドウを表示します。
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+スプラッシュスクリーンは、アプリの起動中に表示される一時的なウィンドウです。これらは、重いセットアップ（例：データベースの初期化）や初期コンテンツのロードを行っている間にユーザーにフィードバックを提供するために使用されます。
+
+このガイドでは、Tauri アプリケーションに静的なスプラッシュスクリーンを追加する方法を説明します。
+
+## スプラッシュスクリーンの作成
+
+まず、スプラッシュスクリーンの HTML ファイルを作成します。このファイルは、スプラッシュスクリーンのコンテンツを定義します。
+
+```html title="src/splashscreen.html"
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loading...</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f0f0f0;
+        font-family: Arial, sans-serif;
+      }
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 16px solid #3498db;
+        width: 120px;
+        height: 120px;
+        -webkit-animation: spin 2s linear infinite; /* Safari */
+        animation: spin 2s linear infinite;
+      }
+      /* Safari */
+      @-webkit-keyframes spin {
+        0% {
+          -webkit-transform: rotate(0deg);
+        }
+        100% {
+          -webkit-transform: rotate(360deg);
+        }
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader"></div>
+  </body>
+</html>
+```
+
+## ウィンドウの設定
+
+次に、[`tauri.conf.json`] でスプラッシュスクリーン用のウィンドウとメインウィンドウを設定します。
+
+```json title="tauri.conf.json"
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "My App",
+        "visible": false, // メインウィンドウは初期状態で非表示にします
+        "fullscreen": false,
+        "width": 800,
+        "height": 600,
+        "resizable": true
+      },
+      {
+        "label": "splashscreen",
+        "title": "Splashscreen",
+        "url": "splashscreen.html", // スプラッシュスクリーンの HTML ファイル
+        "decorations": false, // ウィンドウの装飾（タイトルバーなど）を削除
+        "center": true, // 画面の中央に配置
+        "width": 400,
+        "height": 300,
+        "resizable": false,
+        "visible": true // スプラッシュスクリーンは初期状態で表示します
+      }
+    ]
+  }
+}
+```
+
+## スプラッシュスクリーンのロジック
+
+最後に、メインウィンドウの準備ができたらスプラッシュスクリーンを閉じ、メインウィンドウを表示するロジックを実装します。
+
+### Rust での実装
+
+Rust 側で初期化処理を行い、完了したらイベントを送信する方法もありますが、最も一般的なのはフロントエンドから制御することです。ただし、Rust で完全に制御したい場合は以下のようにします。
+
+```rust
+use tauri::Manager;
+
+fn main() {
+  tauri::Builder::default()
+    .setup(|app| {
+      let splashscreen_window = app.get_webview_window("splashscreen").unwrap();
+      let main_window = app.get_webview_window("main").unwrap();
+
+      // ここで重い初期化処理を実行します...
+      // std::thread::sleep(std::time::Duration::from_secs(2));
+
+      // 初期化が完了したら、スプラッシュスクリーンを閉じてメインウィンドウを表示します
+      splashscreen_window.close().unwrap();
+      main_window.show().unwrap();
+
+      Ok(())
+    })
+    .run(tauri::generate_context!())
+    .expect("failed to run app");
+}
+```
+
+### フロントエンドでの実装
+
+フロントエンドフレームワークのライフサイクルイベント（例：React の `useEffect`、Vue の `onMounted`）を使用して、アプリの準備ができたらスプラッシュスクリーンを閉じることができます。
+
+```javascript
+import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+
+// スプラッシュスクリーンを閉じる関数
+async function closeSplashscreen() {
+  await invoke('close_splashscreen');
+}
+
+// アプリの初期化が完了したときに呼び出します
+document.addEventListener('DOMContentLoaded', () => {
+  // 必要に応じて追加のロード時間をシミュレート
+  setTimeout(() => {
+    closeSplashscreen();
+  }, 2000);
+});
+```
+
+この場合、Rust 側で `close_splashscreen` コマンドを実装する必要があります。
+
+```rust
+#[tauri::command]
+async fn close_splashscreen(window: tauri::Window) {
+  // スプラッシュスクリーンウィンドウを閉じます
+  if let Some(splashscreen) = window.get_webview_window("splashscreen") {
+    splashscreen.close().unwrap();
+  }
+  // メインウィンドウを表示します
+  if let Some(main_window) = window.get_webview_window("main") {
+    main_window.show().unwrap();
+  }
+}
+
+fn main() {
+  tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![close_splashscreen])
+    // ...
+}
+```
+
+[`tauri.conf.json`]: /reference/config/

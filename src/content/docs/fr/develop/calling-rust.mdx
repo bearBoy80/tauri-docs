@@ -1,0 +1,722 @@
+---
+title: Appeler Rust depuis le Frontend
+i18nReady: true
+---
+
+import { Content as FrontendListen } from './_sections/frontend-listen.mdx';
+
+Ce document comprend des guides sur la façon de communiquer avec votre code Rust depuis le frontend de votre application.
+Pour voir comment communiquer avec votre frontend depuis votre code Rust, consultez [Appeler le frontend depuis Rust].
+
+Tauri fournit une primitive de [commande](#commandes) pour atteindre les fonctions Rust avec une sécurité de type,
+ainsi qu'un [système d'événements](#système-dévénements) qui est plus dynamique.
+
+## Commandes
+
+Tauri fournit un système de `commande` simple mais puissant pour appeler des fonctions Rust depuis votre application web.
+Les commandes peuvent accepter des arguments et retourner des valeurs. Elles peuvent également retourner des erreurs et être `async`.
+
+### Exemple de base
+
+Les commandes peuvent être définies dans votre fichier `src-tauri/src/lib.rs`.
+Pour créer une commande, ajoutez simplement une fonction et annotez-la avec `#[tauri::command]` :
+
+```rust title="src-tauri/src/lib.rs"
+#[tauri::command]
+fn my_custom_command() {
+	println!("I was invoked from JavaScript!");
+}
+```
+
+:::note
+Les noms de commande doivent être uniques.
+:::
+
+:::note
+Les commandes définies dans le fichier `lib.rs` ne peuvent pas être marquées comme `pub` en raison d'une limitation dans la génération du code de liaison.
+Vous verrez une erreur comme celle-ci si vous la marquez comme une fonction publique :
+
+```
+error[E0255]: the name `__cmd__command_name` is defined multiple times
+  --> src/lib.rs:28:8
+   |
+27 | #[tauri::command]
+   | ----------------- previous definition of the macro `__cmd__command_name` here
+28 | pub fn x() {}
+   |        ^ `__cmd__command_name` reimported here
+   |
+   = note: `__cmd__command_name` must be defined only once in the macro namespace of this module
+```
+
+:::
+
+Vous devrez fournir une liste de vos commandes à la fonction constructeur comme ceci :
+
+```rust title="src-tauri/src/lib.rs" ins={4}
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+	tauri::Builder::default()
+		.invoke_handler(tauri::generate_handler![my_custom_command])
+		.run(tauri::generate_context!())
+		.expect("error while running tauri application");
+}
+```
+
+Maintenant, vous pouvez invoquer la commande depuis votre code JavaScript :
+
+```javascript
+// Lors de l'utilisation du paquet npm API Tauri :
+import { invoke } from '@tauri-apps/api/core';
+
+// Lors de l'utilisation du script global Tauri (si vous n'utilisez pas le paquet npm)
+// Assurez-vous de définir `app.withGlobalTauri` dans `tauri.conf.json` sur true
+const invoke = window.__TAURI__.core.invoke;
+
+// Invoquer la commande
+invoke('my_custom_command');
+```
+
+#### Définition de commandes dans un module séparé
+
+Si votre application définit beaucoup de composants ou s'ils peuvent être regroupés,
+vous pouvez définir des commandes dans un module séparé au lieu de gonfler le fichier `lib.rs`.
+
+À titre d'exemple, définissons une commande dans le fichier `src-tauri/src/commands.rs` :
+
+```rust title="src-tauri/src/commands.rs"
+#[tauri::command]
+pub fn my_custom_command() {
+	println!("I was invoked from JavaScript!");
+}
+```
+
+:::note
+Lors de la définition de commandes dans un module séparé, elles doivent être marquées comme `pub`.
+:::
+
+:::note
+Le nom de la commande n'est pas limité au module, elles doivent donc être uniques même entre les modules.
+:::
+
+Dans le fichier `lib.rs`, définissez le module et fournissez la liste de vos commandes en conséquence ;
+
+```rust title="src-tauri/src/lib.rs" ins={6}
+mod commands;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+	tauri::Builder::default()
+		.invoke_handler(tauri::generate_handler![commands::my_custom_command])
+		.run(tauri::generate_context!())
+		.expect("error while running tauri application");
+}
+```
+
+Notez le préfixe `commands::` dans la liste des commandes, qui indique le chemin complet vers la fonction de commande.
+
+Le nom de la commande dans cet exemple est `my_custom_command`, vous pouvez donc toujours l'appeler en exécutant `invoke("my_custom_command")`
+dans votre frontend, le préfixe `commands::` est ignoré.
+
+#### WASM
+
+Lorsque vous utilisez un frontend Rust pour appeler `invoke()` sans arguments, vous devrez adapter votre code frontend comme ci-dessous.
+La raison est que Rust ne prend pas en charge les arguments optionnels.
+
+```rust ins={4-5}
+#[wasm_bindgen]
+extern "C" {
+    // invoke sans arguments
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"], js_name = invoke)]
+    async fn invoke_without_args(cmd: &str) -> JsValue;
+
+    // invoke avec arguments (par défaut)
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
+    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+
+    // Ils doivent avoir des noms différents !
+}
+```
+
+### Passer des arguments
+
+Vos gestionnaires de commandes peuvent prendre des arguments :
+
+```rust
+#[tauri::command]
+fn my_custom_command(invoke_message: String) {
+	println!("I was invoked from JavaScript, with this message: {}", invoke_message);
+}
+```
+
+Les arguments doivent être passés sous forme d'objet JSON avec des clés camelCase :
+
+```javascript
+invoke('my_custom_command', { invokeMessage: 'Hello!' });
+```
+
+:::note
+Vous pouvez utiliser `snake_case` pour les arguments avec l'attribut `rename_all` :
+
+```rust
+#[tauri::command(rename_all = "snake_case")]
+fn my_custom_command(invoke_message: String) {}
+```
+
+Le JavaScript correspondant :
+
+```javascript
+invoke('my_custom_command', { invoke_message: 'Hello!' });
+```
+
+:::
+
+Les arguments peuvent être de n'importe quel type, tant qu'ils implémentent [`serde::Deserialize`].
+
+### Retourner des données
+
+Les gestionnaires de commandes peuvent également retourner des données :
+
+```rust
+#[tauri::command]
+fn my_custom_command() -> String {
+	"Hello from Rust!".into()
+}
+```
+
+La fonction `invoke` retourne une promesse qui se résout avec la valeur retournée :
+
+```javascript
+invoke('my_custom_command').then((message) => console.log(message));
+```
+
+Les données retournées peuvent être de n'importe quel type, tant qu'elles implémentent [`serde::Serialize`].
+
+#### Retourner des Array Buffers
+
+Les valeurs de retour qui implémentent [`serde::Serialize`] sont sérialisées en JSON lorsque la réponse est envoyée au frontend.
+Cela peut ralentir votre application si vous essayez de retourner de grandes données telles qu'un fichier ou une réponse HTTP de téléchargement.
+Pour retourner des tampons de tableau de manière optimisée, utilisez [`tauri::ipc::Response`] :
+
+```rust
+use tauri::ipc::Response;
+#[tauri::command]
+fn read_file() -> Response {
+	let data = std::fs::read("/path/to/file").unwrap();
+	tauri::ipc::Response::new(data)
+}
+```
+
+### Gestion des erreurs
+
+Si votre gestionnaire peut échouer et doit pouvoir retourner une erreur, faites en sorte que la fonction retourne un `Result` :
+
+```rust
+#[tauri::command]
+fn login(user: String, password: String) -> Result<String, String> {
+	if user == "tauri" && password == "tauri" {
+		// résoudre
+		Ok("logged_in".to_string())
+	} else {
+		// rejeter
+		Err("invalid credentials".to_string())
+	}
+}
+```
+
+Si la commande retourne une erreur, la promesse sera rejetée, sinon, elle se résout :
+
+```javascript
+invoke('login', { user: 'tauri', password: '0j4rijw8=' })
+  .then((message) => console.log(message))
+  .catch((error) => console.error(error));
+```
+
+Comme mentionné ci-dessus, tout ce qui est retourné par les commandes doit implémenter [`serde::Serialize`], y compris les erreurs.
+Cela peut être problématique si vous travaillez avec des types d'erreur de la bibliothèque standard de Rust ou de crates externes, car la plupart des types d'erreur ne l'implémentent pas.
+Dans des scénarios simples, vous pouvez utiliser `map_err` pour convertir ces erreurs en `String` :
+
+```rust
+#[tauri::command]
+fn my_custom_command() -> Result<(), String> {
+	std::fs::File::open("path/to/file").map_err(|err| err.to_string())?;
+	// Retourner `null` en cas de succès
+	Ok(())
+}
+```
+
+Comme ce n'est pas très idiomatique, vous voudrez peut-être créer votre propre type d'erreur qui implémente `serde::Serialize`.
+Dans l'exemple suivant, nous utilisons le crate [`thiserror`] pour aider à créer le type d'erreur.
+Il vous permet de transformer des énumérations en types d'erreur en dérivant le trait `thiserror::Error`.
+Vous pouvez consulter sa documentation pour plus de détails.
+
+```rust
+// créer le type d'erreur qui représente toutes les erreurs possibles dans notre programme
+#[derive(Debug, thiserror::Error)]
+enum Error {
+	#[error(transparent)]
+	Io(#[from] std::io::Error)
+}
+
+// nous devons implémenter manuellement serde::Serialize
+impl serde::Serialize for Error {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::ser::Serializer,
+	{
+		serializer.serialize_str(self.to_string().as_ref())
+	}
+}
+
+#[tauri::command]
+fn my_custom_command() -> Result<(), Error> {
+	// Cela retournera une erreur
+	std::fs::File::open("path/that/does/not/exist")?;
+	// Retourner `null` en cas de succès
+	Ok(())
+}
+```
+
+Un type d'erreur personnalisé a l'avantage de rendre toutes les erreurs possibles explicites afin que les lecteurs puissent identifier rapidement quelles erreurs peuvent se produire.
+Cela permet à d'autres personnes (et à vous-même) de gagner énormément de temps lors de la révision et du refactoring du code plus tard.<br/>
+Cela vous donne également un contrôle total sur la façon dont votre type d'erreur est sérialisé.
+Dans l'exemple ci-dessus, nous avons simplement retourné le message d'erreur sous forme de chaîne, mais vous pourriez attribuer à chaque erreur un code
+afin de pouvoir le mapper plus facilement à une énumération d'erreur TypeScript d'apparence similaire par exemple :
+
+```rust
+#[derive(Debug, thiserror::Error)]
+enum Error {
+  #[error(transparent)]
+  Io(#[from] std::io::Error),
+  #[error("failed to parse as string: {0}")]
+  Utf8(#[from] std::str::Utf8Error),
+}
+
+#[derive(serde::Serialize)]
+#[serde(tag = "kind", content = "message")]
+#[serde(rename_all = "camelCase")]
+enum ErrorKind {
+  Io(String),
+  Utf8(String),
+}
+
+impl serde::Serialize for Error {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::ser::Serializer,
+  {
+    let error_message = self.to_string();
+    let error_kind = match self {
+      Self::Io(_) => ErrorKind::Io(error_message),
+      Self::Utf8(_) => ErrorKind::Utf8(error_message),
+    };
+    error_kind.serialize(serializer)
+  }
+}
+
+#[tauri::command]
+fn read() -> Result<Vec<u8>, Error> {
+  let data = std::fs::read("/path/to/file")?;
+	Ok(data)
+}
+```
+
+Dans votre frontend, vous obtenez maintenant un objet d'erreur `{ kind: 'io' | 'utf8', message: string }` :
+
+```ts
+type ErrorKind = {
+  kind: 'io' | 'utf8';
+  message: string;
+};
+
+invoke('read').catch((e: ErrorKind) => {});
+```
+
+### Commandes asynchrones
+
+Les commandes asynchrones sont préférées dans Tauri pour effectuer des travaux lourds d'une manière qui n'entraîne pas de gel ou de ralentissement de l'interface utilisateur.
+
+:::note
+
+Les commandes asynchrones sont exécutées sur une tâche asynchrone distincte en utilisant [`async_runtime::spawn`].
+Les commandes sans le mot-clé _async_ sont exécutées sur le thread principal, sauf si elles sont définies avec _#[tauri::command(async)]_.
+
+:::
+
+**Si votre commande doit s'exécuter de manière asynchrone, déclarez-la simplement comme `async`.**
+
+:::caution
+
+Vous devez être prudent lors de la création de fonctions asynchrones à l'aide de Tauri.
+Actuellement, vous ne pouvez pas simplement inclure des arguments empruntés dans la signature d'une fonction asynchrone.
+Quelques exemples courants de types comme celui-ci sont `&str` et `State<'_, Data>`.
+Cette limitation est suivie ici : https://github.com/tauri-apps/tauri/issues/2533 et les solutions de contournement sont présentées ci-dessous.
+
+:::
+
+Lorsque vous travaillez avec des types empruntés, vous devez apporter des modifications supplémentaires. Voici vos deux options principales :
+
+**Option 1** : Convertir le type, tel que `&str` en un type similaire qui n'est pas emprunté, tel que `String`.
+Cela peut ne pas fonctionner pour tous les types, par exemple `State<'_, Data>`.
+
+_Exemple :_
+
+```rust
+// Déclarer la fonction asynchrone en utilisant String au lieu de &str, car &str est emprunté et donc non pris en charge
+#[tauri::command]
+async fn my_custom_command(value: String) -> String {
+	// Appeler une autre fonction asynchrone et attendre qu'elle se termine
+	some_async_function().await;
+	value
+}
+```
+
+**Option 2** : Envelopper le type de retour dans un [`Result`]. C'est un peu plus difficile à implémenter, mais cela fonctionne pour tous les types.
+
+Utilisez le type de retour `Result<a, b>`, en remplaçant `a` par le type que vous souhaitez retourner, ou `()` si vous souhaitez retourner `null`, et en remplaçant `b` par un type d'erreur à retourner si quelque chose ne va pas, ou `()` si vous ne souhaitez pas qu'une erreur facultative soit retournée. Par exemple :
+
+- `Result<String, ()>` pour retourner une chaîne, et aucune erreur.
+- `Result<(), ()>` pour retourner `null`.
+- `Result<bool, Error>` pour retourner un booléen ou une erreur comme indiqué dans la section [Gestion des erreurs](#gestion-des-erreurs) ci-dessus.
+
+_Exemple :_
+
+```rust
+// Retourner un Result<String, ()> pour contourner le problème d'emprunt
+#[tauri::command]
+async fn my_custom_command(value: &str) -> Result<String, ()> {
+	// Appeler une autre fonction asynchrone et attendre qu'elle se termine
+	some_async_function().await;
+	// Notez que la valeur de retour doit être enveloppée dans `Ok()` maintenant.
+	Ok(format!(value))
+}
+```
+
+##### Invocation depuis JavaScript
+
+Étant donné que l'invocation de la commande depuis JavaScript retourne déjà une promesse, cela fonctionne comme n'importe quelle autre commande :
+
+```javascript
+invoke('my_custom_command', { value: 'Hello, Async!' }).then(() =>
+  console.log('Completed!')
+);
+```
+
+### Canaux
+
+Le canal Tauri est le mécanisme recommandé pour diffuser des données telles que des réponses HTTP diffusées vers le frontend.
+L'exemple suivant lit un fichier et notifie le frontend de la progression par morceaux de 4096 octets :
+
+```rust
+use tokio::io::AsyncReadExt;
+
+#[tauri::command]
+async fn load_image(path: std::path::PathBuf, reader: tauri::ipc::Channel<&[u8]>) {
+  // pour simplifier, cet exemple n'inclut pas la gestion des erreurs
+  let mut file = tokio::fs::File::open(path).await.unwrap();
+
+  let mut chunk = vec![0; 4096];
+
+  loop {
+    let len = file.read(&mut chunk).await.unwrap();
+    if len == 0 {
+      // Une longueur de zéro signifie la fin du fichier.
+      break;
+    }
+    reader.send(&chunk).unwrap();
+  }
+}
+```
+
+Voir la [documentation sur les canaux][channels documentation] pour plus d'informations.
+
+### Accès à WebviewWindow dans les commandes
+
+Les commandes peuvent accéder à l'instance `WebviewWindow` qui a invoqué le message :
+
+```rust title="src-tauri/src/lib.rs"
+#[tauri::command]
+async fn my_custom_command(webview_window: tauri::WebviewWindow) {
+	println!("WebviewWindow: {}", webview_window.label());
+}
+```
+
+### Accès à un AppHandle dans les commandes
+
+Les commandes peuvent accéder à une instance `AppHandle` :
+
+```rust title="src-tauri/src/lib.rs"
+#[tauri::command]
+async fn my_custom_command(app_handle: tauri::AppHandle) {
+	let app_dir = app_handle.path().app_dir();
+	use tauri::GlobalShortcutManager;
+	app_handle.global_shortcut_manager().register("CTRL + U", move || {});
+}
+```
+
+:::tip
+
+`AppHandle` et `WebviewWindow` prennent tous deux un paramètre générique `R: Runtime`,
+lorsque la fonctionnalité `wry` est activée dans `tauri` (ce qui est activé par défaut),
+nous définissons par défaut le générique sur le runtime `Wry` afin que vous puissiez l'utiliser directement,
+mais si vous souhaitez utiliser un runtime différent, par exemple le [runtime fictif][mock runtime],
+vous devez écrire vos fonctions comme ceci
+
+```rust title="src-tauri/src/lib.rs" ins="<R: Runtime>" ins="<R>"
+use tauri::{AppHandle, GlobalShortcutManager, Runtime, WebviewWindow};
+
+#[tauri::command]
+async fn my_custom_command<R: Runtime>(app_handle: AppHandle<R>, webview_window: WebviewWindow<R>) {
+  let app_dir = app_handle.path().app_dir();
+  app_handle
+    .global_shortcut_manager()
+    .register("CTRL + U", move || {});
+  println!("WebviewWindow: {}", webview_window.label());
+}
+```
+
+:::
+
+### Accès à l'état géré
+
+Tauri peut gérer l'état à l'aide de la fonction `manage` sur `tauri::Builder`.
+L'état peut être accédé sur une commande en utilisant `tauri::State` :
+
+```rust title="src-tauri/src/lib.rs"
+struct MyState(String);
+
+#[tauri::command]
+fn my_custom_command(state: tauri::State<MyState>) {
+	assert_eq!(state.0 == "some state value", true);
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+	tauri::Builder::default()
+		.manage(MyState("some state value".into()))
+		.invoke_handler(tauri::generate_handler![my_custom_command])
+		.run(tauri::generate_context!())
+		.expect("error while running tauri application");
+}
+```
+
+### Accès à la requête brute
+
+Les commandes Tauri peuvent également accéder à l'objet complet [`tauri::ipc::Request`] qui comprend la charge utile du corps brut et les en-têtes de la requête.
+
+```rust
+#[derive(Debug, thiserror::Error)]
+enum Error {
+  #[error("unexpected request body")]
+  RequestBodyMustBeRaw,
+  #[error("missing `{0}` header")]
+  MissingHeader(&'static str),
+}
+
+impl serde::Serialize for Error {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::ser::Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+#[tauri::command]
+fn upload(request: tauri::ipc::Request) -> Result<(), Error> {
+  let tauri::ipc::InvokeBody::Raw(upload_data) = request.body() else {
+    return Err(Error::RequestBodyMustBeRaw);
+  };
+  let Some(authorization_header) = request.headers().get("Authorization") else {
+    return Err(Error::MissingHeader("Authorization"));
+  };
+
+  // télécharger...
+
+  Ok(())
+}
+```
+
+Dans le frontend, vous pouvez appeler invoke() en envoyant un corps de requête brut en fournissant un ArrayBuffer ou Uint8Array sur l'argument de charge utile,
+et inclure les en-têtes de requête dans le troisième argument :
+
+```js
+const data = new Uint8Array([1, 2, 3]);
+await __TAURI__.core.invoke('upload', data, {
+  headers: {
+    Authorization: 'apikey',
+  },
+});
+```
+
+### Création de plusieurs commandes
+
+La macro `tauri::generate_handler!` prend un tableau de commandes. Pour enregistrer
+plusieurs commandes, vous ne pouvez pas appeler invoke_handler plusieurs fois. Seul le dernier
+appel sera utilisé. Vous devez passer chaque commande à un seul appel de
+`tauri::generate_handler!`.
+
+```rust title="src-tauri/src/lib.rs"
+#[tauri::command]
+fn cmd_a() -> String {
+	"Commande a"
+}
+#[tauri::command]
+fn cmd_b() -> String {
+	"Commande b"
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+	tauri::Builder::default()
+		.invoke_handler(tauri::generate_handler![cmd_a, cmd_b])
+		.run(tauri::generate_context!())
+		.expect("error while running tauri application");
+}
+```
+
+### Exemple complet
+
+Tout ou partie des fonctionnalités ci-dessus peuvent être combinées :
+
+```rust title="src-tauri/src/lib.rs"
+struct Database;
+
+#[derive(serde::Serialize)]
+struct CustomResponse {
+	message: String,
+	other_val: usize,
+}
+
+async fn some_other_function() -> Option<String> {
+	Some("response".into())
+}
+
+#[tauri::command]
+async fn my_custom_command(
+	window: tauri::Window,
+	number: usize,
+	database: tauri::State<'_, Database>,
+) -> Result<CustomResponse, String> {
+	println!("Appelé depuis {}", window.label());
+	let result: Option<String> = some_other_function().await;
+	if let Some(message) = result {
+		Ok(CustomResponse {
+			message,
+			other_val: 42 + number,
+		})
+	} else {
+		Err("Aucun résultat".into())
+	}
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+	tauri::Builder::default()
+		.manage(Database {})
+		.invoke_handler(tauri::generate_handler![my_custom_command])
+		.run(tauri::generate_context!())
+		.expect("error while running tauri application");
+}
+```
+
+```javascript
+import { invoke } from '@tauri-apps/api/core';
+
+// Invocation depuis JavaScript
+invoke('my_custom_command', {
+  number: 42,
+})
+  .then((res) =>
+    console.log(`Message: ${res.message}, Autre val: ${res.other_val}`)
+  )
+  .catch((e) => console.error(e));
+```
+
+## Système d'événements
+
+Le système d'événements est un mécanisme de communication plus simple entre votre frontend et Rust.
+Contrairement aux commandes, les événements ne sont pas typés, sont toujours asynchrones, ne peuvent pas retourner de valeurs et ne supportent que les charges utiles JSON.
+
+### Événements globaux
+
+Pour déclencher un événement global, vous pouvez utiliser les fonctions [event.emit] ou [WebviewWindow#emit] :
+
+```js
+import { emit } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+
+// emit(eventName, payload)
+emit('file-selected', '/path/to/file');
+
+const appWebview = getCurrentWebviewWindow();
+appWebview.emit('route-changed', { url: window.location.href });
+```
+
+:::note
+Les événements globaux sont livrés à **tous** les auditeurs
+:::
+
+### Événement Webview
+
+Pour déclencher un événement à un auditeur enregistré par une webview spécifique, vous pouvez utiliser les fonctions [event.emitTo] ou [WebviewWindow#emitTo] :
+
+```js
+import { emitTo } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+
+// emitTo(webviewLabel, eventName, payload)
+emitTo('settings', 'settings-update-requested', {
+  key: 'notification',
+  value: 'all',
+});
+
+const appWebview = getCurrentWebviewWindow();
+appWebview.emitTo('editor', 'file-changed', {
+  path: '/path/to/file',
+  contents: 'file contents',
+});
+```
+
+:::note
+Les événements spécifiques à la webview ne sont **pas** déclenchés pour les auditeurs d'événements globaux réguliers.
+Pour écouter **n'importe quel** événement, vous devez fournir l'option `{ target: { kind: 'Any' } }` à la fonction [event.listen],
+qui définit l'auditeur pour agir comme un fourre-tout pour les événements émis :
+
+```js
+import { listen } from '@tauri-apps/api/event';
+listen(
+  'state-changed',
+  (event) => {
+    console.log('got state changed event', event);
+  },
+  {
+    target: { kind: 'Any' },
+  }
+);
+```
+
+:::
+
+### Écoute des événements
+
+<FrontendListen />
+
+Pour apprendre comment écouter des événements et émettre des événements depuis votre code Rust, consultez la [documentation du système d'événements Rust][Rust Event System documentation].
+
+[Appeler le frontend depuis Rust]: /fr/develop/calling-frontend/
+[`async_runtime::spawn`]: https://docs.rs/tauri/2.0.0/tauri/async_runtime/fn.spawn.html
+[`serde::serialize`]: https://docs.serde.rs/serde/trait.Serialize.html
+[`serde::deserialize`]: https://docs.serde.rs/serde/trait.Deserialize.html
+[`tauri::ipc::Response`]: https://docs.rs/tauri/2.0.0/tauri/ipc/struct.Response.html
+[`tauri::ipc::Request`]: https://docs.rs/tauri/2.0.0/tauri/ipc/struct.Request.html
+[`thiserror`]: https://github.com/dtolnay/thiserror
+[`result`]: https://doc.rust-lang.org/std/result/index.html
+[event.emit]: /fr/reference/javascript/api/namespaceevent/#emit
+[event.listen]: /fr/reference/javascript/api/namespaceevent/#listen
+[WebviewWindow#emit]: /fr/reference/javascript/api/namespacewebviewwindow/#emit
+[event.emitTo]: /fr/reference/javascript/api/namespaceevent/#emitto
+[WebviewWindow#emitTo]: /fr/reference/javascript/api/namespacewebviewwindow/#emitto
+[Rust Event System documentation]: /fr/develop/calling-frontend/#event-system
+[channels documentation]: /fr/develop/calling-frontend/#channels
+[Appeler Rust depuis le Frontend]: /fr/develop/calling-rust/
+[mock runtime]: https://docs.rs/tauri/2.0.0/tauri/test/struct.MockRuntime.html

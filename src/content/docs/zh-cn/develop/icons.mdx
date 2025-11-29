@@ -1,0 +1,119 @@
+---
+title: 应用程序图标
+sidebar:
+  order: 1
+---
+
+{/* TODO: More platform specific explanations like macOS requiring padding in the icon (waiting for https://github.com/tauri-apps/tauri/pull/11037) */}
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+Tauri 基于其徽标附带了一个默认图标集。这 **不是** 你在发布应用程序时想要的。为了解决这个常见情况，Tauri 提供了 `icon` 命令，它将获取输入文件（默认为 `"./app-icon.png"`）并创建各种平台所需的所有图标。
+
+:::note[关于文件类型的说明]
+
+- `icon.icns` = macOS
+- `icon.ico` = Windows
+- `*.png` = Linux
+- `Square*Logo.png` & `StoreLogo.png` = 目前未使用，但用于 AppX/MS Store 目标。
+
+某些图标类型可能用于上面列出之外的平台（特别是 `png`）。因此，即使你打算仅针对一部分平台进行构建，我们也建议包含所有图标。
+
+:::
+
+## 命令用法
+
+<CommandTabs
+  npm="npm run tauri icon"
+  yarn="yarn tauri icon"
+  pnpm="pnpm tauri icon"
+  cargo="cargo tauri icon"
+  deno="deno task tauri icon"
+/>
+
+```console
+> pnpm tauri icon --help
+
+Generate various icons for all major platforms
+
+Usage: pnpm run tauri icon [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Path to the source icon (squared PNG or SVG file with transparency) [default: ./app-icon.png]
+
+Options:
+  -o, --output <OUTPUT>        Output directory. Default: 'icons' directory next to the tauri.conf.json file
+  -v, --verbose...             Enables verbose logging
+  -p, --png <PNG>              Custom PNG icon sizes to generate. When set, the default icons are not generated
+      --ios-color <IOS_COLOR>  The background color of the iOS icon - string as defined in the W3C's CSS Color Module Level 4 <https://www.w3.org/TR/css-color-4/> [default: #fff]
+  -h, --help                   Print help
+  -V, --version                Print version
+```
+
+默认情况下，**桌面** 图标将放置在 `src-tauri/icons` 文件夹中，它们将自动包含在构建的应用程序中。如果你想从不同位置获取图标，可以编辑 `tauri.conf.json` 文件的这一部分：
+
+```json
+{
+  "bundle": {
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
+```
+
+**移动** 图标将直接放置到 Xcode 和 Android Studio 项目中！
+
+## 手动创建图标
+
+如果你更喜欢自己构建这些图标，例如，如果你想要小尺寸的更简单的设计，或者因为你不想依赖 CLI 的内部图像调整大小，你必须确保你的图标满足一些要求：
+
+- `icon.icns`: [`icns`] 文件所需的图层大小和名称在 [Tauri 仓库中][in the Tauri repo] 进行了描述
+- `icon.ico`: [`ico`] 文件必须包含 16、24、32、48、64 和 256 像素的图层。为了在 _开发中_ 获得 ICO 图像的最佳显示效果，32px 图层应该是第一层。
+- `png`: png 图标的要求是：宽度 == 高度，RGBA（RGB + 透明度），和每像素 32 位（每通道 8 位）。桌面上通常预期的尺寸为 32、128、256 和 512 像素。我们建议至少匹配 `tauri icon` 的输出：`32x32.png`、`128x128.png`、`128x128@2x.png` 和 `icon.png`。
+
+### Android
+
+在 Android 上，你需要具有相同要求但不同尺寸的 png 图标。它们还需要直接放置在 Android Studio 项目中：
+
+- `src-tauri/gen/android/app/src/main/res/`
+  - `mipmap-hdpi/`
+    - `ic_launcher.png` & `ic_launcher_round.png`: 49x49px
+    - `ic_launcher_foreground.png`: 162x162px
+  - `mipmap-mdpi/`
+    - `ic_launcher.png` & `ic_launcher_round.png`: 48x48px
+    - `ic_launcher_foreground.png`: 108x108px
+  - `mipmap-xhdpi/`
+    - `ic_launcher.png` & `ic_launcher_round.png`: 96x96px
+    - `ic_launcher_foreground.png`: 216x216px
+  - `mipmap-xxhdpi/`
+    - `ic_launcher.png` & `ic_launcher_round.png`: 144x144px
+    - `ic_launcher_foreground.png`: 324x324px
+  - `mipmap-xxxhdpi/`
+    - `ic_launcher.png` & `ic_launcher_round.png`: 192x192px
+    - `ic_launcher_foreground.png`: 432x432px
+
+如果无法使用 `tauri icon`，我们建议查看 Android Studio 的 [Image Asset Studio]。
+
+### iOS
+
+在 iOS 上，你需要具有相同要求但 **没有透明度** 且尺寸不同的 png 图标。它们还需要直接放置在 Xcode 项目中，位于 `src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/`。预期以下图标：
+
+- 20px @ 1x, 2x, 3x, 带有额外图标
+- 29px @ 1x, 2x, 3x, 带有额外图标
+- 40px @ 1x, 2x, 3x, 带有额外图标
+- 60px @ 2x, 3x
+- 76px @ 1x, 2x
+- 83.5px @ 2x
+- 512px @ 2x 保存为 `AppIcon-512@2x.png`
+
+文件名的格式为 `AppIcon-{size}x{size}@{scaling}{extra}.png`。对于 20px 图标，这意味着你需要 20x20、40x40 和 60x60 尺寸的图标，命名为 `AppIcon-20x20@1x.png`、`AppIcon-20x20@2x.png`、`AppIcon-20x20@3x.png`，并且 `2x` 另外保存为 `AppIcon-20x20@2x-1.png`（“额外图标”）。
+
+[in the tauri repo]: https://github.com/tauri-apps/tauri/blob/1.x/tooling/cli/src/helpers/icns.json
+[`icns`]: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
+[`ico`]: https://en.wikipedia.org/wiki/ICO_(file_format)
+[image asset studio]: https://developer.android.com/studio/write/create-app-icons
