@@ -1,0 +1,335 @@
+---
+title: App Store
+sidebar:
+  order: 1
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+L'[Apple App Store] est le marché d'applications maintenu par Apple.
+Vous pouvez distribuer votre application Tauri ciblant macOS et iOS via cet App Store.
+
+Cette guide ne couvre que les détails pour distribuer des applications directement sur l'App Store.
+Consultez le guide général de [Distribution App Bundle][App Bundle distribution guide] pour plus d'informations sur les options et configurations de distribution macOS.
+
+## Prérequis
+
+Distribuer des applications iOS et macOS nécessite de s'inscrire au programme [Apple Developer].
+
+De plus, vous devez configurer la signature de code pour [macOS][macOS code signing] et [iOS][iOS code signing].
+
+## Changer l'icône de l'application
+
+Après avoir exécuté `tauri ios init` pour configurer le projet Xcode, vous pouvez utiliser la commande `tauri icon` pour mettre à jour les icônes de l'application.
+
+<CommandTabs
+  npm="npm run tauri icon /path/to/app-icon.png -- --ios-color #fff"
+  yarn="yarn tauri icon /path/to/app-icon.png --ios-color #fff"
+  pnpm="pnpm tauri icon /path/to/app-icon.png --ios-color #fff"
+  deno="deno task tauri icon /path/to/app-icon.png --ios-color #fff"
+  bun="bun tauri icon /path/to/app-icon.png --ios-color #fff"
+  cargo="cargo tauri icon /path/to/app-icon.png --ios-color #fff"
+/>
+
+L'argument `--ios-color` définit la couleur d'arrière-plan pour les icônes iOS.
+
+## Configuration
+
+Après vous être inscrit au programme Apple Developer, la première étape pour distribuer votre application Tauri sur l'App Store est d'enregistrer votre application dans [App Store Connect][app-store-connect-apps].
+
+:::note
+La valeur fournie dans le champ _Bundle ID_ **doit** correspondre à l'identifiant défini dans [`tauri.conf.json > identifier`].
+:::
+
+## Construction et téléchargement
+
+La CLI Tauri peut empaqueter votre application pour macOS et iOS. L'exécution sur une machine macOS est requise.
+
+Tauri dérive le [`CFBundleVersion`](https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundleversion) de la valeur définie dans [`tauri.conf.json > version`].
+Vous pouvez définir une version de bundle personnalisée dans la configuration [`tauri.conf.json > bundle > iOS > bundleVersion`] ou [`tauri.conf.json > bundle > macOS > bundleVersion`] si vous avez besoin d'un schéma de version de bundle différent, par exemple des codes séquentiels :
+
+```json title="tauri.conf.json" ins={4}
+{
+  "bundle": {
+    "iOS": {
+      "bundleVersion": "100"
+    }
+  }
+}
+```
+
+:::caution
+La signature de code est requise. Consultez la documentation pour [macOS][macOS code signing] et [iOS][iOS code signing].
+:::
+
+Notez que Tauri exploite Xcode pour l'application iOS, vous pouvez donc utiliser Xcode pour archiver et distribuer pour iOS au lieu de la CLI Tauri.
+Pour ouvrir le projet iOS dans Xcode pour la construction, vous devez exécuter la commande suivante :
+
+<CommandTabs
+  npm="npm run tauri ios build -- --open"
+  yarn="yarn tauri ios build --open"
+  pnpm="pnpm tauri ios build --open"
+  deno="deno task tauri ios build --open"
+  bun="bun tauri ios build --open"
+  cargo="cargo tauri ios build --open"
+/>
+
+### macOS
+
+Pour télécharger votre application sur l'App Store, vous devez d'abord vous assurer que toutes les options de configuration requises sont définies afin de pouvoir empaqueter l'App Bundle, créer un fichier `.pkg` signé et le télécharger.
+
+Les sections suivantes vous guideront à travers le processus.
+
+#### Configuration
+
+Votre application doit inclure certaines configurations pour être acceptée par le système de vérification de l'App Store.
+
+:::tip
+Les sections suivantes vous guident à travers la configuration de votre application pour les soumissions à l'App Store.
+
+Pour appliquer les changements de configuration suivants uniquement lors de la construction pour l'App Store, vous pouvez créer un fichier de configuration Tauri séparé :
+
+```json title="src-tauri/tauri.appstore.conf.json"
+{
+  "bundle": {
+    "macOS": {
+      "entitlements": "./Entitlements.plist",
+      "files": {
+        "embedded.provisionprofile": "path/to/profile-name.provisionprofile"
+      }
+    }
+  }
+}
+```
+
+Fusionnez ensuite ce fichier de configuration avec le principal lors de l'empaquetage de votre application Tauri pour l'App Store :
+
+<CommandTabs
+  npm="npm run tauri build -- --no-bundle
+npm run tauri bundle -- --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
+  yarn="yarn tauri build --no-bundle
+yarn tauri bundle --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
+  pnpm="pnpm tauri build --no-bundle
+pnpm tauri bundle --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
+  deno="deno task tauri build --no-bundle
+deno task tauri bundle --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
+  bun="bun tauri build --no-bundle
+bun tauri bundle --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
+  cargo="cargo tauri build --no-bundle
+cargo tauri bundle --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
+/>
+
+Ceci est particulièrement utile lors de la configuration de votre CI/CD pour télécharger votre application sur l'App Store sans nécessiter le profil de provision localement ou lors de la compilation de l'application pour une distribution en dehors de l'App Store.
+
+:::
+
+- Catégorie
+
+Votre application doit définir sa [`tauri.conf.json > bundle > category`] pour être affichée dans l'App Store :
+
+```json title="tauri.conf.json" ins={3}
+{
+  "bundle": {
+    "category": "Utility"
+  }
+}
+```
+
+- Profil de provisionnement
+
+Vous devez également créer un profil de provisionnement pour que votre application soit acceptée par Apple.
+
+Dans la page [Identifiers](https://developer.apple.com/account/resources/identifiers/list), créez un nouvel App ID et assurez-vous que sa valeur "Bundle ID" correspond à l'identifiant défini dans [`tauri.conf.json > identifier`].
+
+Accédez à la page [Profiles](https://developer.apple.com/account/resources/profiles/list) pour créer un nouveau profil de provisionnement.
+Pour la distribution macOS App Store, il doit s'agir d'un profil "Mac App Store Connect".
+Sélectionnez l'App ID approprié et liez le certificat que vous utilisez pour la signature de code.
+
+Après avoir créé le profil de provisionnement, téléchargez-le et enregistrez-le dans un emplacement connu et configurez Tauri pour l'inclure dans votre bundle d'application :
+
+```json title="tauri.conf.json" ins={4-6}
+{
+  "bundle": {
+    "macOS": {
+      "files": {
+        "embedded.provisionprofile": "path/to/profile-name.provisionprofile"
+      }
+    }
+  }
+}
+```
+
+- Info.plist
+
+Votre application doit se conformer aux réglementations d'exportation de chiffrement.
+Consultez la [documentation officielle](https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations?language=objc) pour plus d'informations.
+
+Créez un fichier Info.plist dans le dossier src-tauri :
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/> # ou `true` si votre application utilise le chiffrement
+</dict>
+</plist>
+```
+
+- Entitlements (Droits)
+
+Votre application doit inclure la capacité App Sandbox pour être distribuée sur l'App Store.
+De plus, vous devez également définir votre App ID et Team ID dans les droits de signature de code.
+
+Créez un fichier `Entitlements.plist` dans le dossier `src-tauri` :
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.application-identifier</key>
+    <string>$TEAM_ID.$IDENTIFIER</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>$TEAM_ID</string>
+</dict>
+</plist>
+```
+
+Notez que vous devez remplacer `$IDENTIFIER` par la valeur [`tauri.conf.json > identifier`] et `$TEAM_ID` par votre ID d'équipe Apple Developer, qui se trouve dans la section `App ID Prefix` dans l'[Identifiant](https://developer.apple.com/account/resources/identifiers/list) que vous avez créé pour le profil de provisionnement.
+
+Et référencez ce fichier dans la configuration du bundle macOS [`tauri.conf.json > bundle > macOS > entitlements`] :
+
+```json title="tauri.conf.json" ins={4}
+{
+  "bundle": {
+    "macOS": {
+      "entitlements": "./Entitlements.plist"
+    }
+  }
+}
+```
+
+Vous devez maintenant construire votre application avec la signature de code activée pour que les droits s'appliquent.
+
+Assurez-vous que votre application fonctionne lorsqu'elle est exécutée dans un contexte App Sandbox.
+
+#### Construction
+
+Vous devez télécharger votre application macOS en tant que fichier `.pkg` sur l'App Store.
+Exécutez la commande suivante pour empaqueter votre application en tant que macOS App Bundle (extension `.app`) :
+
+```
+tauri build --bundles app --target universal-apple-darwin
+```
+
+:::note
+La commande ci-dessus crée une application Universal App Binary, prenant en charge les processeurs Apple Silicon et Intel.
+
+Si vous préférez ne prendre en charge que Apple Silicon, vous devez changer [`tauri.conf.json > bundle > macOS > minimumSystemVersion`] à `12.0` :
+
+```json title="tauri.conf.json" ins={4}
+{
+  "bundle": {
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    }
+  }
+}
+```
+
+Et changez la commande CLI et le chemin de sortie en fonction du système Mac que vous exécutez :
+
+- si votre système de construction utilise une puce Apple Silicon, supprimez les arguments `--target universal-apple-darwin` et utilisez `target/release`
+  au lieu de `target/universal-apple-darwin/release` dans les chemins référencés ci-dessous.
+- si votre système de construction utilise une puce Intel :
+  - installez la cible Rust Apple Silicon :
+    ```
+    rustup target add aarch64-apple-darwin
+    ```
+  - changez l'argument `universal-apple-darwin` en `aarch64-apple-darwin`
+    et utilisez `target/aarch64-apple-darwin/release` au lieu de `target/universal-apple-darwin/release` dans les chemins référencés ci-dessous.
+
+:::
+
+Consultez le [guide de distribution App Bundle][App Bundle distribution guide] pour plus d'informations sur les options de configuration.
+
+Pour générer un `.pkg` signé à partir de votre bundle d'application, exécutez la commande suivante :
+
+```
+xcrun productbuild --sign "<certificate signing identity>" --component "target/universal-apple-darwin/release/bundle/macos/$APPNAME.app" /Applications "$APPNAME.pkg"
+```
+
+Notez que vous devez remplacer _$APPNAME_ par le nom de votre application.
+
+:::note
+Vous devez signer le PKG avec un certificat de signature _Mac Installer Distribution_.
+:::
+
+#### Téléchargement
+
+Maintenant, vous pouvez utiliser la CLI [`altool`] pour télécharger votre PKG d'application sur l'App Store :
+
+```
+xcrun altool --upload-app --type macos --file "$APPNAME.pkg" --apiKey $APPLE_API_KEY_ID --apiIssuer $APPLE_API_ISSUER
+```
+
+Notez que `altool` nécessite une clé API App Store Connect pour télécharger votre application.
+Consultez la [section authentification][authentication section] pour plus d'informations.
+
+Votre application sera ensuite validée par Apple et disponible dans TestFlight si elle est approuvée.
+
+### iOS
+
+Pour construire votre application iOS, exécutez la commande `tauri ios build` :
+
+<CommandTabs
+  npm="npm run tauri ios build -- --export-method app-store-connect"
+  yarn="yarn tauri ios build --export-method app-store-connect"
+  pnpm="pnpm tauri ios build --export-method app-store-connect"
+  deno="deno task tauri ios build --export-method app-store-connect"
+  bun="bun tauri ios build --export-method app-store-connect"
+  cargo="cargo tauri ios build --export-method app-store-connect"
+/>
+
+Le fichier IPA généré peut être trouvé dans `src-tauri/gen/apple/build/arm64/$APPNAME.ipa`.
+
+Notez que vous devez remplacer _$APPNAME_ par le nom de votre application.
+
+Maintenant, vous pouvez utiliser la CLI `altool` pour télécharger votre application iOS sur l'App Store :
+
+```
+xcrun altool --upload-app --type ios --file "src-tauri/gen/apple/build/arm64/$APPNAME.ipa" --apiKey $APPLE_API_KEY_ID --apiIssuer $APPLE_API_ISSUER
+```
+
+Notez que `altool` nécessite une clé API App Store Connect pour télécharger votre application.
+Consultez la [section authentification][authentication section] pour plus d'informations.
+
+Votre application sera ensuite validée par Apple et disponible dans TestFlight si elle est approuvée.
+
+### Authentification
+
+Les applications iOS et macOS sont téléchargées à l'aide de `altool`, qui utilise une clé API App Store Connect pour s'authentifier.
+
+Pour créer une nouvelle clé API, ouvrez la [page Users and Access d'App Store Connect][App Store Connect's Users and Access page], sélectionnez l'onglet Integrations > Individual Keys, cliquez sur le bouton Add et sélectionnez un nom et l'accès Developer.
+Le `APPLE_API_ISSUER` (Issuer ID) est présenté au-dessus du tableau des clés, et le `APPLE_API_KEY_ID` est la valeur dans la colonne Key ID de ce tableau.
+Vous devez également télécharger la clé privée, ce qui ne peut être fait qu'une seule fois et n'est visible qu'après un rechargement de la page (le bouton est affiché sur la ligne du tableau pour la clé nouvellement créée).
+Le chemin du fichier de clé privée doit être enregistré sous `AuthKey_<APPLE_API_KEY_ID>.p8` dans l'un de ces répertoires : `<current-working-directory>/private_keys`, `~/private_keys`, `~/.private_keys` ou `~/.appstoreconnect/private_keys`.
+
+[App Bundle distribution guide]: /fr/distribute/macos-application-bundle/
+[Apple Developer]: https://developer.apple.com
+[Apple App Store]: https://www.apple.com/store
+[`altool`]: https://help.apple.com/itc/apploader/#/apdATD1E53-D1E1A1303-D1E53A1126
+[macOS code signing]: /fr/distribute/sign/macos/
+[iOS code signing]: /fr/distribute/sign/ios/
+[app-store-connect-apps]: https://appstoreconnect.apple.com/apps
+[`tauri.conf.json > identifier`]: /fr/reference/config/#identifier
+[`tauri.conf.json > bundle > category`]: /fr/reference/config/#category
+[`tauri.conf.json > bundle > macOS > entitlements`]: /fr/reference/config/#entitlements
+[`tauri.conf.json > bundle > macOS > minimumSystemVersion`]: /fr/reference/config/#minimumsystemversion
+[App Store Connect's Users and Access page]: https://appstoreconnect.apple.com/access/users
+[authentication section]: #authentification
