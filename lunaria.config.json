@@ -3,7 +3,8 @@
   "repository": {
     "name": "tauri-apps/tauri-docs",
     "branch": "v2",
-    "hosting": "github"
+    "hosting": "github",
+    "rootDir": "."
   },
   "files": [
     {
@@ -51,7 +52,7 @@
   "dashboard": {
     "title": "Tauri Docs Translation Status",
     "site": "https://tauri.app/contribute/translate-status",
-    "description": "Translation progress tracker for the Tauri Docs site. See how much has been translated in your language and get involved!",
+    "description": "Translation progress tracker for Tauri Docs site. See how much has been translated in your language and get involved!",
     "favicon": {
       "external": [
         {
