@@ -1,0 +1,52 @@
+---
+title: CrabNebula DevTools
+sidebar:
+  badge:
+    text: Nuevo
+    variant: tip
+i18nReady: true
+---
+
+import { Image } from 'astro:assets';
+import devToolsPrint from '@assets/develop/Debug/crabnebula-devtools.png';
+
+[CrabNebula](https://crabnebula.dev/) proporciona una aplicación gratuita de [DevTools](https://crabnebula.dev/devtools/) para Tauri como parte de su asociación con el proyecto Tauri. Esta aplicación le permite instrumentar su aplicación Tauri capturando sus activos integrados, el archivo de configuración de Tauri, registros y tramos (spans) y proporcionando una interfaz web para visualizar datos sin problemas en tiempo real.
+
+Con CrabNebula DevTools puede inspeccionar los eventos de registro de su aplicación (incluidos los registros de dependencias), rastrear el rendimiento de sus llamadas a comandos y el uso general de la API de Tauri, con una interfaz especial para eventos y comandos de Tauri, que incluye carga útil (payload), respuestas y registros internos y tramos de ejecución.
+
+Para habilitar CrabNebula DevTools, instale la caja (crate) devtools:
+
+```sh frame=none
+cargo add tauri-plugin-devtools@2.0.0
+```
+
+E inicialice el complemento lo antes posible en su función main:
+
+```rust
+fn main() {
+    // Esto debe llamarse lo antes posible en la ejecución de la aplicación
+    #[cfg(debug_assertions)] // habilitar la instrumentación solo en compilaciones de desarrollo
+    let devtools = tauri_plugin_devtools::init();
+
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(devtools);
+    }
+
+    builder
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+```
+
+Y luego ejecute su aplicación como de costumbre; si todo está configurado correctamente, devtools imprimirá el siguiente mensaje:
+
+<Image src={devToolsPrint} alt="Mensaje de DevTools en la terminal" />
+
+:::note
+En este caso, solo inicializamos el complemento devtools para aplicaciones de depuración, lo cual es recomendable.
+:::
+
+Para obtener más información, consulte la documentación de [CrabNebula DevTools](https://docs.crabnebula.dev/devtools/get-started/).

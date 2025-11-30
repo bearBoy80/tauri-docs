@@ -1,0 +1,319 @@
+---
+title: 대화 상자
+description: 파일 열기 및 저장을 위한 기본 시스템 대화 상자와 메시지 대화 상자.
+i18nReady: true
+tableOfContents:
+  maxHeadingLevel: 4
+plugin: dialog
+---
+
+import PluginLinks from '@components/PluginLinks.astro';
+import Compatibility from '@components/plugins/Compatibility.astro';
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import CommandTabs from '@components/CommandTabs.astro';
+import PluginPermissions from '@components/PluginPermissions.astro';
+
+<PluginLinks plugin={frontmatter.plugin} />
+
+파일 열기 및 저장을 위한 기본 시스템 대화 상자와 메시지 대화 상자입니다.
+
+## 지원되는 플랫폼
+
+<Compatibility plugin={frontmatter.plugin} />
+
+## 설정
+
+대화 상자 플러그인을 설치하여 시작하십시오.
+
+<Tabs>
+    <TabItem label="자동">
+
+        프로젝트의 패키지 관리자를 사용하여 의존성을 추가하십시오:
+
+        <CommandTabs npm="npm run tauri add dialog"
+                    yarn="yarn run tauri add dialog"
+                    pnpm="pnpm tauri add dialog"
+                    deno="deno task tauri add dialog"
+                    bun="bun tauri add dialog"
+                    cargo="cargo tauri add dialog" />
+
+    </TabItem>
+    <TabItem label="수동">
+        <Steps>
+
+            1. `src-tauri` 폴더에서 다음 명령을 실행하여 `Cargo.toml`의 프로젝트 의존성에 플러그인을 추가하십시오:
+
+                ```sh frame=none
+                cargo add tauri-plugin-dialog
+                ```
+
+            2.  `lib.rs`를 수정하여 플러그인을 초기화하십시오:
+
+                ```rust title="src-tauri/src/lib.rs" ins={4}
+                #[cfg_attr(mobile, tauri::mobile_entry_point)]
+                pub fn run() {
+                    tauri::Builder::default()
+                        .plugin(tauri_plugin_dialog::init())
+                        .run(tauri::generate_context!())
+                        .expect("error while running tauri application");
+                }
+                ```
+
+            3.  JavaScript에서 대화 상자를 만들려면 npm 패키지도 설치하십시오:
+
+                <CommandTabs
+                    npm="npm install @tauri-apps/plugin-dialog"
+                    yarn="yarn add @tauri-apps/plugin-dialog"
+                    pnpm="pnpm add @tauri-apps/plugin-dialog"
+                    deno="deno add npm:@tauri-apps/plugin-dialog"
+                    bun="bun add @tauri-apps/plugin-dialog"
+                />
+
+        </Steps>
+    </TabItem>
+
+</Tabs>
+
+## 사용법
+
+대화 상자 플러그인은 JavaScript와 Rust 모두에서 사용할 수 있습니다. 사용 방법은 다음과 같습니다:
+
+JavaScript:
+
+- [예/아니요 대화 상자 만들기](#예아니요-대화-상자-만들기)
+- [확인/취소 대화 상자 만들기](#확인취소-대화-상자-만들기)
+- [메시지 대화 상자 만들기](#메시지-대화-상자-만들기)
+- [파일 선택 대화 상자 열기](#파일-선택-대화-상자-열기)
+- [파일에 저장 대화 상자](#파일에-저장-대화-상자)
+
+Rust:
+
+- [질문 대화 상자 빌드](#질문-대화-상자-빌드)
+- [메시지 대화 상자 빌드](#메시지-대화-상자-빌드)
+- [파일 선택 대화 상자 빌드](#파일-선택-대화-상자-빌드)
+
+:::note
+파일 대화 상자 API는 Linux, Windows 및 macOS에서 파일 시스템 경로를 반환합니다.
+
+iOS에서는 `file://<path>` URI가 반환됩니다.
+
+Android에서는 [콘텐츠 URI][content URIs]가 반환됩니다.
+
+[파일 시스템 플러그인][filesystem plugin]은 기본적으로 모든 경로 형식과 작동합니다.
+:::
+
+### JavaScript
+
+JavaScript API 참조에서 모든 [대화 상자 옵션](/reference/javascript/dialog/)을 확인하십시오.
+
+#### 예/아니요 대화 상자 만들기
+
+`예` 및 `아니요` 버튼이 있는 질문 대화 상자를 표시합니다.
+
+```javascript
+import { ask } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true`를 사용할 때, 다음을 사용할 수 있습니다:
+// const { ask } = window.__TAURI__.dialog;
+
+// 예/아니요 대화 상자 만들기
+const answer = await ask('이 작업은 되돌릴 수 없습니다. 확실합니까?', {
+  title: 'Tauri',
+  kind: 'warning',
+});
+
+console.log(answer);
+// 콘솔에 불리언 출력
+```
+
+#### 확인/취소 대화 상자 만들기
+
+`확인` 및 `취소` 버튼이 있는 질문 대화 상자를 표시합니다.
+
+```javascript
+import { confirm } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true`를 사용할 때, 다음을 사용할 수 있습니다:
+// const { confirm } = window.__TAURI__.dialog;
+
+// 확인/취소 대화 상자 생성
+const confirmation = await confirm(
+  '이 작업은 되돌릴 수 없습니다. 확실합니까?',
+  { title: 'Tauri', kind: 'warning' }
+);
+
+console.log(confirmation);
+// 콘솔에 불리언 출력
+```
+
+#### 메시지 대화 상자 만들기
+
+`확인` 버튼이 있는 메시지 대화 상자를 표시합니다. 사용자가 대화 상자를 닫으면 `false`가 반환된다는 점을 명심하십시오.
+
+```javascript
+import { message } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true`를 사용할 때, 다음을 사용할 수 있습니다:
+// const { message } = window.__TAURI__.dialog;
+
+// 메시지 표시
+await message('파일을 찾을 수 없습니다', { title: 'Tauri', kind: 'error' });
+```
+
+#### 파일 선택 대화 상자 열기
+
+파일/디렉터리 선택 대화 상자를 엽니다.
+
+`multiple` 옵션은 대화 상자가 다중 선택을 허용하는지 여부를 제어하고, `directory`는 디렉터리 선택인지 여부를 제어합니다.
+
+```javascript
+import { open } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true`를 사용할 때, 다음을 사용할 수 있습니다:
+// const { open } = window.__TAURI__.dialog;
+
+// 대화 상자 열기
+const file = await open({
+  multiple: false,
+  directory: false,
+});
+console.log(file);
+// 파일 경로 또는 URI 출력
+```
+
+#### 파일에 저장 대화 상자
+
+파일/디렉터리 저장 대화 상자를 엽니다.
+
+```javascript
+import { save } from '@tauri-apps/plugin-dialog';
+// `"withGlobalTauri": true`를 사용할 때, 다음을 사용할 수 있습니다:
+// const { save } = window.__TAURI__.dialog;
+
+// 확장자가 .png 또는 .jpeg인 'My Filter' 저장을 프롬프트
+const path = await save({
+  filters: [
+    {
+      name: 'My Filter',
+      extensions: ['png', 'jpeg'],
+    },
+  ],
+});
+console.log(path);
+// 선택한 경로 출력
+```
+
+---
+
+### Rust
+
+사용 가능한 모든 옵션을 보려면 [Rust API 참조](https://docs.rs/tauri-plugin-dialog/)를 참조하십시오.
+
+#### 질문 대화 상자 빌드
+
+`Absolutely` 및 `Totally` 버튼이 있는 질문 대화 상자를 표시합니다.
+
+```rust
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+
+let answer = app.dialog()
+        .message("Tauri is Awesome")
+        .title("Tauri is Awesome")
+        .buttons(MessageDialogButtons::OkCancelCustom("Absolutely", "Totally"))
+        .blocking_show();
+```
+
+비차단 작업이 필요한 경우 `show()`를 대신 사용할 수 있습니다:
+
+```rust
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+
+app.dialog()
+    .message("Tauri is Awesome")
+    .title("Tauri is Awesome")
+   .buttons(MessageDialogButtons::OkCancelCustom("Absolutely", "Totally"))
+    .show(|result| match result {
+        true => // 뭔가 수행,
+        false =>// 뭔가 수행,
+    });
+```
+
+#### 메시지 대화 상자 빌드
+
+`확인` 버튼이 있는 메시지 대화 상자를 표시합니다. 사용자가 대화 상자를 닫으면 `false`가 반환된다는 점을 명심하십시오.
+
+```rust
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+
+let ans = app.dialog()
+    .message("File not found")
+    .kind(MessageDialogKind::Error)
+    .title("Warning")
+    .blocking_show();
+```
+
+비차단 작업이 필요한 경우 `show()`를 대신 사용할 수 있습니다:
+
+```rust
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+
+app.dialog()
+    .message("Tauri is Awesome")
+    .kind(MessageDialogKind::Info)
+    .title("Information")
+    .buttons(MessageDialogButtons::OkCustom("Absolutely"))
+    .show(|result| match result {
+        true => // 뭔가 수행,
+        false => // 뭔가 수행,
+    });
+```
+
+#### 파일 선택 대화 상자 빌드
+
+#### 파일 선택
+
+```rust
+use tauri_plugin_dialog::DialogExt;
+
+let file_path = app.dialog().file().blocking_pick_file();
+// file_path `Option`을 반환하거나 사용자가 대화 상자를 닫으면 `None`을 반환
+```
+
+비차단 작업이 필요한 경우 `pick_file()`을 대신 사용할 수 있습니다:
+
+```rust
+use tauri_plugin_dialog::DialogExt;
+
+app.dialog().file().pick_file(|file_path| {
+    // file_path `Option`을 반환하거나 사용자가 대화 상자를 닫으면 `None`을 반환
+    })
+```
+
+#### 파일 저장
+
+```rust
+use tauri_plugin_dialog::DialogExt;
+
+let file_path = app
+    .dialog()
+    .file()
+    .add_filter("My Filter", &["png", "jpeg"])
+    .blocking_save_file();
+    // 여기서 선택적 파일 경로로 뭔가 수행
+    // 사용자가 대화 상자를 닫으면 파일 경로는 `None`입니다.
+```
+
+또는 대안으로:
+
+```rust
+use tauri_plugin_dialog::DialogExt;
+
+app.dialog()
+    .file()
+    .add_filter("My Filter", &["png", "jpeg"])
+    .pick_file(|file_path| {
+        // file_path `Option`을 반환하거나 사용자가 대화 상자를 닫으면 `None`을 반환
+    });
+```
+
+<PluginPermissions plugin={frontmatter.plugin} />
+
+[content URIs]: https://developer.android.com/guide/topics/providers/content-provider-basics
+[filesystem plugin]: /plugin/file-system/

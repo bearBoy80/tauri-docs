@@ -1,0 +1,260 @@
+---
+title: GitHub
+i18nReady: true
+---
+
+Ce guide vous montrera comment utiliser [tauri-action](https://github.com/tauri-apps/tauri-action) dans [GitHub Actions](https://docs.github.com/fr/actions) pour compiler et télécharger facilement votre application, et comment faire en sorte que le programme de mise à jour de Tauri interroge la version GitHub nouvellement créée pour les mises à jour.
+
+Enfin, il montrera également comment configurer un pipeline de construction plus complexe pour les AppImages Linux Arm.
+
+:::note[Signature de code]
+
+Pour configurer la signature de code pour Windows et macOS dans votre workflow, suivez le guide spécifique à chaque plateforme :
+
+- [Signature de code Windows](/distribute/sign/windows/)
+- [Signature de code macOS](/distribute/sign/macos/)
+
+:::
+
+## Commencer
+
+Pour configurer `tauri-action`, vous devez d'abord configurer un dépôt GitHub. Vous pouvez également utiliser cette action sur un dépôt qui n'a pas encore configuré Tauri, car elle peut initialiser automatiquement Tauri pour vous, veuillez consulter le [readme de l'action](https://github.com/tauri-apps/tauri-action/#project-initialization) pour les options de configuration nécessaires.
+
+Allez dans l'onglet Actions sur la page de votre projet GitHub et sélectionnez "New workflow", puis choisissez "Set up a workflow yourself". Remplacez le fichier par le workflow [ci-dessous](#exemple-de-workflow) ou par l'un des [exemples de l'action](https://github.com/tauri-apps/tauri-action/tree/dev/examples).
+
+## Configuration
+
+Veuillez consulter le [readme](https://github.com/tauri-apps/tauri-action/#inputs) de `tauri-action` pour toutes les options de configuration disponibles.
+
+Lorsque votre application n'est pas à la racine du dépôt, utilisez l'entrée `projectPath`.
+
+Vous pouvez librement modifier le nom du workflow, changer ses déclencheurs et ajouter d'autres étapes telles que `npm run lint` ou `npm run test`. La partie importante est que vous gardiez la ligne ci-dessous à la fin du workflow car cela exécute le script de construction et publie votre application.
+
+### Comment déclencher
+
+Le workflow de publication présenté ci-dessous et dans les exemples `tauri-action` est déclenché par un push sur la branche `release`. L'action crée automatiquement un tag git et un titre pour la release GitHub en utilisant la version de l'application.
+
+À titre d'autre exemple, vous pouvez également modifier le déclencheur pour exécuter le workflow lors du push d'un tag git de version tel que `app-v0.7.0` :
+
+```yaml
+name: 'publish'
+
+on:
+  push:
+    tags:
+      - 'app-v*'
+```
+
+Pour une liste complète des configurations de déclencheurs possibles, consultez la [documentation officielle de GitHub](https://docs.github.com/fr/actions/using-workflows/events-that-trigger-workflows).
+
+## Exemple de Workflow
+
+Vous trouverez ci-dessous un exemple de workflow qui a été configuré pour s'exécuter chaque fois que vous pushez vers la branche `release`.
+
+Ce workflow compilera et publiera votre application pour Windows x64, Linux x64, Linux Arm64, macOS x64 et macOS Arm64 (M1 et supérieur).
+
+Les étapes suivies par ce workflow sont :
+
+1. Cloner le dépôt en utilisant `actions/checkout@v4`.
+2. Installer les dépendances système Linux requises pour compiler l'application.
+3. Configurer Node.js LTS et un cache pour les données globales des paquets npm/yarn/pnpm en utilisant `actions/setup-node@v4`.
+4. Configurer Rust et un cache pour les artefacts de construction de Rust en utilisant `dtolnay/rust-toolchain@stable` et `swatinem/rust-cache@v2`.
+5. Installer les dépendances frontend et, si elles ne sont pas configurées comme [`beforeBuildCommand`](/reference/config/#beforebuildcommand), exécuter le script de construction de l'application web.
+6. Enfin, il utilise `tauri-apps/tauri-action@v0` pour exécuter `tauri build`, générer les artefacts et créer une release GitHub.
+
+```yaml
+name: 'publish'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest' # pour les macs basés sur Arm (M1 et supérieur).
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest' # pour les macs basés sur Intel.
+            args: '--target x86_64-apple-darwin'
+          - platform: 'ubuntu-22.04'
+            args: ''
+          - platform: 'ubuntu-22.04-arm' # Uniquement disponible dans les dépôts publics.
+            args: ''
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' # Cela doit correspondre à la valeur de la plateforme définie ci-dessus.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'yarn' # Définissez ceci sur npm, yarn ou pnpm.
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable # Définissez ceci sur dtolnay/rust-toolchain@nightly
+        with:
+          # Ces cibles ne sont utilisées que sur les runners macos, c'est donc dans un `if` pour accélérer légèrement les builds windows et linux.
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: install frontend dependencies
+        # Si vous n'avez pas configuré `beforeBuildCommand`, vous voudrez peut-être aussi compiler votre frontend ici.
+        run: yarn install # changez ceci en npm ou pnpm selon celui que vous utilisez.
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: app-v__VERSION__ # l'action remplace automatiquement \_\_VERSION\_\_ par la version de l'application.
+          releaseName: 'App v__VERSION__'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+```
+
+Pour plus d'options de configuration, consultez le dépôt [`tauri-action`](https://github.com/tauri-apps/tauri-action) et ses [exemples](https://github.com/tauri-apps/tauri-action/blob/dev/examples/).
+
+:::caution
+
+Lisez attentivement la documentation sur les [limites d'utilisation, la facturation et l'administration](https://docs.github.com/fr/actions/learn-github-actions/usage-limits-billing-and-administration) pour GitHub Actions.
+
+:::
+
+## Compilation avec Arm Runner
+
+:::note[Mise à jour d'août 2025]
+Github a [publié](https://github.blog/changelog/2025-08-07-arm64-hosted-runners-for-public-repositories-are-now-generally-available/#get-started) des runners `ubuntu-22.04-arm` et `ubuntu-24.04-arm` disponibles publiquement. Vous pouvez les utiliser pour compiler votre application pour Arm64 dans des dépôts publics avec l'exemple de workflow ci-dessus.
+:::
+
+Ce workflow utilise [`pguyot/arm-runner-action`](https://github.com/pguyot/arm-runner-action) pour compiler directement sur un runner Arm émulé. Cela comble le manque de support de compilation inter-architecture dans les outils AppImage.
+
+:::danger
+`arm-runner-action` est **beaucoup** plus lent que les runners standard de GitHub, alors soyez prudent dans les dépôts privés où vous êtes facturé pour les minutes de compilation. Une compilation sans cache pour un nouveau projet `create-tauri-app` nécessite environ 1 heure.
+:::
+
+```yaml
+name: 'Publish Linux Arm builds'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      matrix:
+        arch: [aarch64, armv7l]
+        include:
+          - arch: aarch64
+            cpu: cortex-a72
+            base_image: https://dietpi.com/downloads/images/DietPi_RPi5-ARMv8-Bookworm.img.xz
+            deb: arm64
+            rpm: aarch64
+            appimage: aarch64
+          - arch: armv7l
+            cpu: cortex-a53
+            deb: armhfp
+            rpm: arm
+            appimage: armhf
+            base_image: https://dietpi.com/downloads/images/DietPi_RPi-ARMv7-Bookworm.img.xz
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+
+      - name: Build app
+        uses: pguyot/arm-runner-action@v2.6.5
+        with:
+          base_image: ${{ matrix.base_image }}
+          cpu: ${{ matrix.cpu }}
+          bind_mount_repository: true
+          image_additional_mb: 10240
+          optimize_image: no
+          #exit_on_fail: no
+          commands: |
+            # Prevent Rust from complaining about $HOME not matching eid home
+            export HOME=/root
+
+            # Workaround to CI worker being stuck on Updating crates.io index
+            export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
+            # Install setup prerequisites
+            apt-get update -y --allow-releaseinfo-change
+            apt-get autoremove -y
+            apt-get install -y --no-install-recommends --no-install-suggests curl libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file
+            curl https://sh.rustup.rs -sSf | sh -s -- -y
+            . "$HOME/.cargo/env"
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | bash
+            apt-get install -y nodejs
+
+            # Install frontend dependencies
+            npm install
+
+            # Build the application
+            npm run tauri build -- --verbose
+
+      - name: Get app version
+        run: echo "APP_VERSION=$(jq -r .version src-tauri/tauri.conf.json)" >> $GITHUB_ENV
+
+      # TODO: Combine this with the basic workflow and upload the files to the Release.
+      - name: Upload deb bundle
+        uses: actions/upload-artifact@v3
+        with:
+          name: Debian Bundle
+          path: ${{ github.workspace }}/src-tauri/target/release/bundle/deb/appname_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
+
+      - name: Upload rpm bundle
+        uses: actions/upload-artifact@v3
+        with:
+          name: RPM Bundle
+          path: ${{ github.workspace }}/src-tauri/target/release/bundle/rpm/appname-${{ env.APP_VERSION }}-1.${{ matrix.rpm }}.rpm
+
+      - name: Upload appimage bundle
+        uses: actions/upload-artifact@v3
+        with:
+          name: AppImage Bundle
+          path: ${{ github.workspace }}/src-tauri/target/release/bundle/appimage/appname_${{ env.APP_VERSION }}_${{ matrix.appimage }}.AppImage
+```
+
+## Dépannage
+
+### Jeton d'environnement GitHub
+
+Le jeton GitHub est automatiquement émis par GitHub pour chaque exécution de workflow sans configuration supplémentaire, ce qui signifie qu'il n'y a aucun risque de fuite de secret. Cependant, ce jeton n'a par défaut que des autorisations de lecture et vous pouvez obtenir une erreur "Resource not accessible by integration" lors de l'exécution du workflow. Si cela se produit, vous devrez peut-être ajouter des autorisations d'écriture à ce jeton. Pour ce faire, accédez aux paramètres de votre projet GitHub, sélectionnez `Actions`, faites défiler jusqu'à `Workflow permissions` et cochez "Read and write permissions".
+
+Vous pouvez voir le jeton GitHub transmis au workflow via cette ligne dans le workflow :
+
+```yaml
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```

@@ -1,0 +1,143 @@
+---
+title: HTTP クライアント
+description: Rust で書かれた HTTP クライアントにアクセスします。
+plugin: http
+i18nReady: true
+---
+
+import PluginLinks from '@components/PluginLinks.astro';
+import Compatibility from '@components/plugins/Compatibility.astro';
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import CommandTabs from '@components/CommandTabs.astro';
+import PluginPermissions from '@components/PluginPermissions.astro';
+
+<PluginLinks plugin={frontmatter.plugin} />
+
+http プラグインを使用して HTTP リクエストを行います。
+
+## サポートされているプラットフォーム
+
+<Compatibility plugin={frontmatter.plugin} />
+
+## 設定
+
+http プラグインをインストールして開始します。
+
+<Tabs>
+    <TabItem label="自動">
+
+        プロジェクトのパッケージマネージャーを使用して依存関係を追加します：
+
+        <CommandTabs npm="npm run tauri add http"
+        yarn="yarn run tauri add http"
+        pnpm="pnpm tauri add http"
+        deno="deno task tauri add http"
+        bun="bun tauri add http"
+        cargo="cargo tauri add http" />
+
+    </TabItem>
+    <TabItem label="手動">
+        <Steps>
+
+        1. `src-tauri` フォルダーで次のコマンドを実行して、`Cargo.toml` のプロジェクトの依存関係にプラグインを追加します：
+
+            ```sh frame=none
+            cargo add tauri-plugin-http
+            ```
+
+        2.  `lib.rs` を変更してプラグインを初期化します：
+
+            ```rust title="src-tauri/src/lib.rs" ins={4}
+            #[cfg_attr(mobile, tauri::mobile_entry_point)]
+            pub fn run() {
+                tauri::Builder::default()
+                    .plugin(tauri_plugin_http::init())
+                    .run(tauri::generate_context!())
+                    .expect("error while running tauri application");
+            }
+            ```
+
+        3.  JavaScript で http リクエストを行う場合は、npm パッケージもインストールします：
+
+            <CommandTabs
+                npm="npm install @tauri-apps/plugin-http"
+                yarn="yarn add @tauri-apps/plugin-http"
+                pnpm="pnpm add @tauri-apps/plugin-http"
+                deno="deno add npm:@tauri-apps/plugin-http"
+                bun="bun add @tauri-apps/plugin-http"
+            />
+
+        </Steps>
+    </TabItem>
+
+</Tabs>
+
+## 使用法
+
+HTTP プラグインは、[reqwest](https://docs.rs/reqwest/) の再エクスポートとして Rust で、また JavaScript で使用できます。
+
+### JavaScript
+
+<Steps>
+
+1.  許可された URL を構成する
+
+    ```json
+    //src-tauri/capabilities/default.json
+    {
+      "permissions": [
+        {
+          "identifier": "http:default",
+          "allow": [{ "url": "https://*.tauri.app" }],
+          "deny": [{ "url": "https://private.tauri.app" }]
+        }
+      ]
+    }
+    ```
+
+    詳細については、[権限の概要](/security/permissions/)のドキュメントを参照してください。
+
+2.  リクエストを送信する
+
+    `fetch` メソッドは、可能な限り [`fetch` Web API](https://developer.mozilla.org/ja/docs/Web/API/Fetch_API) に近づけ、準拠しようとします。
+
+    ```javascript
+    import { fetch } from '@tauri-apps/plugin-http';
+
+    // GET リクエストを送信する
+    const response = await fetch('http://test.tauri.app/data.json', {
+      method: 'GET',
+    });
+    console.log(response.status); // 例: 200
+    console.log(response.statusText); // 例: "OK"
+    ```
+
+    :::note
+
+    [禁止されたリクエストヘッダー]はデフォルトで無視されます。それらを使用するには、`unsafe-headers` 機能フラグを有効にする必要があります：
+
+    ```toml title="src-tauri/Cargo.toml"
+    [dependencies]
+    tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
+    ```
+
+    :::
+
+</Steps>
+
+### Rust
+
+Rust では、プラグインによって再エクスポートされた `reqwest` クレートを利用できます。詳細については、[reqwest のドキュメント](https://docs.rs/reqwest/)を参照してください。
+
+```rust
+use tauri_plugin_http::reqwest;
+
+let res = reqwest::get("http://my.api.host/data.json").await;
+println!("{:?}", res.status()); // 例: 200
+println!("{:?}", res.text().await); // 例: Ok("{ Content }")
+```
+
+<PluginPermissions plugin={frontmatter.plugin} />
+
+[禁止されたリクエストヘッダー]: https://fetch.spec.whatwg.org/#terminology-headers

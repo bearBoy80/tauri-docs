@@ -1,0 +1,56 @@
+---
+title: Actualización de dependencias
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+Mantener tus dependencias actualizadas es importante por razones de seguridad, corrección de errores y rendimiento.
+
+Tauri se basa en una serie de paquetes de Rust y NPM, y proporciona herramientas para simplificar el proceso de actualización.
+
+## Actualización de dependencias de NPM
+
+Para actualizar tus dependencias de NPM (como el paquete `@tauri-apps/api`), puedes usar el administrador de paquetes de tu elección:
+
+<CommandTabs
+  npm="npm update"
+  yarn="yarn upgrade"
+  pnpm="pnpm update"
+  bun="bun update"
+  deno="deno update"
+/>
+
+También debes verificar si hay versiones principales más nuevas disponibles para los paquetes que estás usando.
+
+## Actualización de dependencias de Rust
+
+Para actualizar tus dependencias de Rust (incluido el crate `tauri` y los plugins), puedes usar el comando `cargo update` dentro de la carpeta `src-tauri`:
+
+```bash
+cd src-tauri
+cargo update
+```
+
+Esto actualizará tu archivo `Cargo.lock` a las últimas versiones compatibles de tus dependencias.
+
+Para actualizar a una nueva versión principal o menor que podría no estar cubierta por tu versión semver actual en `Cargo.toml`, puedes usar `cargo upgrade` (requiere instalar `cargo-edit`):
+
+```bash
+cargo install cargo-edit
+cd src-tauri
+cargo upgrade
+```
+
+O puedes editar manualmente tu archivo `src-tauri/Cargo.toml` para especificar las nuevas versiones.
+
+## Actualización de la CLI de Tauri
+
+Para actualizar la herramienta CLI de Tauri, depende de cómo la instalaste:
+
+- Si la usas a través de un administrador de paquetes de Node.js, se actualizará junto con tus otras dependencias de NPM.
+- Si la instalaste globalmente usando cargo (`cargo install tauri-cli`), puedes ejecutar el comando de instalación nuevamente para actualizar:
+
+```bash
+cargo install tauri-cli
+```
