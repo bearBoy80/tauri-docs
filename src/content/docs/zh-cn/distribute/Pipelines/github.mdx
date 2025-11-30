@@ -20,7 +20,7 @@ i18nReady: true
 
 要设置 `tauri-action`，你必须首先设置一个 GitHub 仓库。你也可以在一个尚未配置 Tauri 的仓库上使用此 Action，因为它可以为你自动初始化 Tauri，请参阅 [Action 的自述文件](https://github.com/tauri-apps/tauri-action/#project-initialization)以了解必要的配置选项。
 
-转到你的 GitHub 项目页面上的 Actions 选项卡，选择“New workflow”，然后选择“Set up a workflow yourself”。将文件替换为[下面](#example-workflow)的工作流程或 [Action 的示例](https://github.com/tauri-apps/tauri-action/tree/dev/examples)之一。
+转到你的 GitHub 项目页面上的 Actions 选项卡，选择"New workflow"，然后选择"Set up a workflow yourself"。将文件替换为下面的工作流程或 [Action 的示例](https://github.com/tauri-apps/tauri-action/tree/dev/examples)之一。
 
 ## 配置
 
@@ -250,11 +250,10 @@ jobs:
 
 ### GitHub 环境令牌
 
-GitHub 令牌由 GitHub 为每次工作流程运行自动颁发，无需进一步配置，这意味着没有机密泄露的风险。但是，此令牌默认情况下仅具有读取权限，运行工作流程时可能会收到“Resource not accessible by integration”（集成无法访问资源）错误。如果发生这种情况，你需要为此令牌添加写入权限。为此，请转到你的 GitHub 项目设置，选择 `Actions`，向下滚动到 `Workflow permissions`，然后选中“Read and write permissions”。
+GitHub 令牌由 GitHub 为每次工作流程运行自动颁发，无需进一步配置，这意味着没有机密泄露的风险。但是，此令牌默认情况下仅具有读取权限，运行工作流程时可能会收到"Resource not accessible by integration"（集成无法访问资源）错误。如果发生这种情况，你需要为此令牌添加写入权限。为此，请转到你的 GitHub 项目设置，选择 `Actions`，向下滚动到 `Workflow permissions`，然后选中"Read and write permissions"。
 
 你可以通过工作流程中的此行查看传递给工作流程的 GitHub 令牌：
 
 ```yaml
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```

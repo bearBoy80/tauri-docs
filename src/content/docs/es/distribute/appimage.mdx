@@ -5,37 +5,37 @@ sidebar:
 i18nReady: true
 ---
 
-`AppImage` es un formato de distribución que no depende de los paquetes instalados en el sistema y, en cambio, empaqueta todas las dependencias y archivos necesarios para la aplicación. Por esta razón, el archivo de salida es más grande pero más fácil de distribuir ya que es compatible con muchas distribuciones de Linux y se puede ejecutar sin instalación. El usuario solo necesita hacer que el archivo sea ejecutable (`chmod a+x MyProject.AppImage`) y luego puede ejecutarlo (`./MyProject.AppImage`).
+`AppImage` es un formato de distribución que no depende de gestores de paquetes del sistema, sino que agrupa todas las dependencias y archivos que la aplicación necesita. Por lo tanto, el archivo de salida es más grande, pero es más fácil de distribuir porque es compatible con muchas distribuciones de Linux y se puede ejecutar sin instalación. El usuario solo necesita hacer el archivo ejecutable (`chmod a+x MyProject.AppImage`) y luego puede ejecutarlo (`./MyProject.AppImage`).
 
-Las AppImages son convenientes, simplificando el proceso de distribución si no puedes crear un paquete dirigido al administrador de paquetes de la distribución. Aún así, debes usarlo con cuidado ya que el tamaño del archivo crece del rango de 2-6 MB a más de 70 MB.
+AppImage es muy conveniente si no puedes crear un paquete para el gestor de paquetes de tu distribución, ya que simplifica el proceso de distribución. Sin embargo, debes usarlo con precaución, ya que el tamaño del archivo aumentará de 2-6 MB a 70+ MB.
 
 :::note
 
-Las aplicaciones GUI en macOS y Linux no heredan el `$PATH` de tus archivos de configuración de shell (`.bashrc`, `.bash_profile`, `.zshrc`, etc). Consulta el crate [fix-path-env-rs](https://github.com/tauri-apps/fix-path-env-rs) de Tauri para solucionar este problema.
+Las aplicaciones GUI en macOS y Linux no heredan la variable `$PATH` de tu archivo de configuración de shell (`.bashrc`, `.bash_profile`, `.zshrc`, etc.). Consulta el crate [fix-path-env-rs](https://github.com/tauri-apps/fix-path-env-rs) de Tauri para solucionar este problema.
 
 :::
 
 ## Limitaciones
 
-Las bibliotecas principales como glibc rompen frecuentemente la compatibilidad con sistemas más antiguos. Por esta razón, debes construir tu aplicación Tauri utilizando el sistema base más antiguo que pretendas admitir. Un sistema relativamente antiguo como Ubuntu 18.04 es más adecuado que Ubuntu 22.04, ya que el binario compilado en Ubuntu 22.04 tendrá un requisito más alto de la versión glibc, por lo que al ejecutar en un sistema más antiguo, enfrentarás un error de tiempo de ejecución como `/usr/lib/libc.so.6: version 'GLIBC_2.33' not found`. Recomendamos usar un contenedor Docker o GitHub Actions para construir tu aplicación Tauri para Linux.
+Las bibliotecas centrales como glibc a menudo rompen la compatibilidad con sistemas antiguos. Por lo tanto, debes construir tu aplicación Tauri utilizando el sistema base más antiguo que planeas admitir. Un sistema relativamente antiguo como Ubuntu 18.04 es más adecuado que Ubuntu 22.04, ya que los binarios compilados en Ubuntu 22.04 tienen requisitos de versión más altos para glibc y encontrarás errores de tiempo de ejecución como `/usr/lib/libc.so.6: version 'GLIBC_2.33' not found` cuando se ejecutan en sistemas antiguos. Recomendamos usar contenedores Docker o GitHub Actions para construir tu aplicación Tauri para Linux.
 
-Consulta los problemas [tauri-apps/tauri#1355](https://github.com/tauri-apps/tauri/issues/1355) y [rust-lang/rust#57497](https://github.com/rust-lang/rust/issues/57497), además de la [guía de AppImage](https://docs.appimage.org/reference/best-practices.html#binaries-compiled-on-old-enough-base-system) para obtener más información.
+Para más información, consulta los issues [tauri-apps/tauri#1355](https://github.com/tauri-apps/tauri/issues/1355) y [rust-lang/rust#57497](https://github.com/rust-lang/rust/issues/57497), y la [guía de AppImage](https://docs.appimage.org/reference/best-practices.html#binaries-compiled-on-old-enough-base-system).
 
-## Soporte multimedia a través de GStreamer
+## Soporte Multimedia a través de GStreamer
 
-Si tu aplicación reproduce audio/video, necesitas habilitar `tauri.conf.json > bundle > linux > appimage > bundleMediaFramework`. Esto aumentará el tamaño del paquete AppImage para incluir archivos gstreamer adicionales necesarios para la reproducción de medios. Esta bandera actualmente solo es totalmente compatible con sistemas de compilación Ubuntu. Asegúrate de que tu sistema de compilación tenga todos los complementos que tu aplicación pueda necesitar en tiempo de ejecución.
+Si tu aplicación reproduce audio/video, necesitas habilitar `tauri.conf.json > bundle > linux > appimage > bundleMediaFramework`. Esto aumentará el tamaño del paquete AppImage para incluir los archivos adicionales de gstreamer necesarios para la reproducción multimedia. Esta bandera actualmente solo es totalmente compatible en sistemas de compilación de Ubuntu. Asegúrate de que tu sistema de compilación tenga todos los complementos que tu aplicación pueda necesitar en tiempo de ejecución.
 
 :::caution
 
-Los complementos de GStreamer en el paquete `ugly` tienen una licencia que puede dificultar su distribución como parte de tu aplicación.
+Los complementos de GStreamer en el paquete `ugly` pueden tener licencias que dificultan su distribución como parte de una aplicación.
 
 :::
 
 {/* TODO: Add some reference links for gst setup/plugins */}
 
-## Archivos personalizados
+## Archivos Personalizados
 
-Para incluir archivos personalizados en la AppImage que no deseas incluir a través de la [`característica de recursos`](/es/develop/resources/) de Tauri, puedes proporcionar una lista de archivos o carpetas en `tauri.conf.json > bundle > linux > appimage > files`. El objeto de configuración asigna la ruta en la AppImage a la ruta al archivo en tu sistema de archivos, relativa al archivo `tauri.conf.json`. Aquí hay una configuración de ejemplo:
+Para incluir archivos personalizados en AppImage que no quieres incluir a través de la función [`resources`](/es/develop/resources/) de Tauri, puedes proporcionar una lista de archivos o carpetas en `tauri.conf.json > bundle > linux > appimage > files`. El objeto de configuración mapea rutas en AppImage a rutas de archivos en el sistema de archivos (relativas al archivo `tauri.conf.json`). Aquí tienes un ejemplo de configuración:
 
 ```json title="tauri.conf.json"
 {
@@ -43,8 +43,8 @@ Para incluir archivos personalizados en la AppImage que no deseas incluir a trav
     "linux": {
       "appimage": {
         "files": {
-          "/usr/share/README.md": "../README.md", // copia el archivo ../README.md a <appimage>/usr/share/README.md
-          "/usr/assets": "../assets/" // copia el directorio ../assets completo a <appimage>/usr/assets
+          "/usr/share/README.md": "../README.md", // copia ../README.md a <appimage>/usr/share/README.md
+          "/usr/assets": "../assets/" // copia todo el directorio ../assets a <appimage>/usr/assets
         }
       }
     }
@@ -54,18 +54,18 @@ Para incluir archivos personalizados en la AppImage que no deseas incluir a trav
 
 :::note
 
-Ten en cuenta que las rutas de destino actualmente deben comenzar con `/usr/`.
+Ten en cuenta que la ruta de destino actualmente debe comenzar con `/usr/`.
 
 :::
 
-## AppImages para dispositivos basados en ARM
+## AppImages para Dispositivos Basados en ARM
 
 :::note[Actualización de agosto de 2025]
-Github ha [lanzado](https://github.blog/changelog/2025-08-07-arm64-hosted-runners-for-public-repositories-are-now-generally-available/#get-started) corredores `ubuntu-22.04-arm` y `ubuntu-24.04-arm` disponibles públicamente. Puedes usarlos para construir tu aplicación sin cambios, una compilación típica debería tomar ~10 minutos.
+Github ha [lanzado](https://github.blog/changelog/2025-08-07-arm64-hosted-runners-for-public-repositories-are-now-generally-available/#get-started) runners `ubuntu-22.04-arm` y `ubuntu-24.04-arm` de uso público. Puedes usar estos para construir tu aplicación sin ningún cambio, una construcción típica debería tomar alrededor de 10 minutos.
 :::
 
-`linuxdeploy`, la herramienta AppImage que utiliza Tauri, actualmente [no admite la compilación cruzada] de AppImages ARM. Esto significa que las AppImages ARM solo se pueden construir en dispositivos o emuladores ARM.
+`linuxdeploy` (la herramienta de AppImage que usa Tauri) actualmente [no soporta compilación cruzada] de AppImages ARM. Esto significa que los AppImages ARM solo se pueden construir en dispositivos ARM o emuladores.
 
-Consulta nuestra [guía de GitHub Action](/es/distribute/pipelines/github/#compilaci%C3%B3n-con-arm-runner) para ver un flujo de trabajo de ejemplo que aprovecha QEMU para construir la aplicación. Ten en cuenta que esto es extremadamente lento y solo se recomienda en repositorios públicos donde los minutos de compilación son gratuitos. En repositorios privados, los corredores ARM de GitHub deberían ser más rentables y mucho más fáciles de configurar.
+Consulta nuestra [guía de GitHub Action](/es/distribute/pipelines/github/) para obtener un flujo de trabajo de ejemplo que utilice QEMU para construir tu aplicación. Ten en cuenta que esto es muy lento y solo se recomienda para repositorios públicos con minutos de construcción gratuitos. En repositorios privados, los runners ARM de GitHub deberían ser más rentables y fáciles de configurar.
 
-[no admite la compilación cruzada]: https://github.com/linuxdeploy/linuxdeploy/issues/258
+[no soporta compilación cruzada]: https://github.com/linuxdeploy/linuxdeploy/issues/258
