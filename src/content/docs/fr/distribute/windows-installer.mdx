@@ -31,7 +31,7 @@ Pour construire et empaqueter votre application dans un installateur Windows, vo
 
 :::note[Exigence VBSCRIPT pour les paquets MSI]
 
-La construction de paquets MSI (`"targets": "msi"` ou `"targets": "all"` dans `tauri.conf.json`) nécessite l'activation de la fonctionnalité optionnelle VBSCRIPT sous Windows. Cette fonctionnalité est activée par défaut sur la plupart des installations Windows, mais si vous rencontrez des erreurs telles que `failed to run light.exe`, vous devrez peut-être l'activer manuellement via **Paramètres** → **Applications** → **Fonctionnalités facultatives** → **Plus de fonctionnalités Windows**. Voir le [guide des prérequis](/fr/start/prerequisites/#vbscript-for-msi-installers) pour des instructions détaillées.
+La construction de paquets MSI (`"targets": "msi"` ou `"targets": "all"` dans `tauri.conf.json`) nécessite l'activation de la fonctionnalité optionnelle VBSCRIPT sous Windows. Cette fonctionnalité est activée par défaut sur la plupart des installations Windows, mais si vous rencontrez des erreurs telles que `failed to run light.exe`, vous devrez peut-être l'activer manuellement via **Paramètres** → **Applications** → **Fonctionnalités facultatives** → **Plus de fonctionnalités Windows**. Voir le [guide des prérequis](/start/prerequisites/#vbscript-for-msi-installers) pour des instructions détaillées.
 
 :::
 
@@ -188,7 +188,7 @@ Notez que l'installateur NSIS lui-même sera toujours x86 s'exécutant sur la ma
 
 Par défaut, le Microsoft Installer (`.msi`) ne fonctionne pas sous Windows 7 car il doit télécharger le bootstrapper WebView2 s'il n'est pas installé
 (ce qui pourrait échouer si TLS 1.2 n'est pas activé dans le système d'exploitation). Tauri inclut une option pour intégrer le bootstrapper WebView2
-(voir la section [Intégration du bootstrapper WebView2](#embedded-bootstrapper) ci-dessous).
+(voir la section [Intégration du bootstrapper WebView2](#bootstrapper-intégré) ci-dessous).
 L'installateur basé sur NSIS (`-setup.exe`) prend également en charge le mode `downloadBootstrapper` sous Windows 7.
 
 De plus, pour utiliser l'API de notification dans Windows 7, vous devez activer la fonctionnalité Cargo `windows7-compat` :
@@ -215,11 +215,11 @@ Voir le tableau suivant pour une comparaison entre ces méthodes :
 
 | Méthode d'installation                             | Nécessite une connexion Internet ? | Taille d'installation supplémentaire | Remarques                                                                                                               |
 | :------------------------------------------------- | :--------------------------------- | :----------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
-| [`downloadBootstrapper`](#downloaded-bootstrapper) | Oui                                | 0MB                                  | `Par défaut` <br /> Résulte en une taille d'installation plus petite, mais n'est pas recommandé pour le déploiement Windows 7 via des fichiers `.msi`. |
-| [`embedBootstrapper`](#embedded-bootstrapper)      | Oui                                | ~1.8MB                               | Meilleur support sous Windows 7 pour les installateurs `.msi`.                                                         |
-| [`offlineInstaller`](#offline-installer)           | Non                                | ~127MB                               | Intègre l'installateur WebView2. Recommandé pour les environnements hors ligne.                                          |
-| [`fixedVersion`](#fixed-version)                   | Non                                | ~180MB                               | Intègre une version fixe de WebView2.                                                                                   |
-| [`skip`](#skipping-installation)                   | Non                                | 0MB                                  | ⚠️ Non recommandé <br /> N'installe pas WebView2 dans le cadre de l'installation Windows.                               |
+| [`downloadBootstrapper`](#bootstrapper-téléchargé) | Oui                                | 0MB                                  | `Par défaut` <br /> Résulte en une taille d'installation plus petite, mais n'est pas recommandé pour le déploiement Windows 7 via des fichiers `.msi`. |
+| [`embedBootstrapper`](#bootstrapper-intégré)      | Oui                                | ~1.8MB                               | Meilleur support sous Windows 7 pour les installateurs `.msi`.                                                         |
+| [`offlineInstaller`](#installateur-hors-ligne)           | Non                                | ~127MB                               | Intègre l'installateur WebView2. Recommandé pour les environnements hors ligne.                                          |
+| [`fixedVersion`](#version-fixe)                   | Non                                | ~180MB                               | Intègre une version fixe de WebView2.                                                                                   |
+| [`skip`](#ignorer-linstallation)                   | Non                                | 0MB                                  | ⚠️ Non recommandé <br /> N'installe pas WebView2 dans le cadre de l'installation Windows.                               |
 
 :::info
 

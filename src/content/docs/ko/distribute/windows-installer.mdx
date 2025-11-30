@@ -31,7 +31,7 @@ NSIS 설치 프로그램의 크로스 컴파일은 아래에 나와 있습니다
 
 :::note[MSI 패키지에 대한 VBSCRIPT 요구 사항]
 
-MSI 패키지 빌드(`tauri.conf.json`의 `"targets": "msi"` 또는 `"targets": "all"`)를 위해서는 Windows에서 VBSCRIPT 선택적 기능을 활성화해야 합니다. 이 기능은 대부분의 Windows 설치에서 기본적으로 활성화되어 있지만 `failed to run light.exe`와 같은 오류가 발생하면 **설정** → **앱** → **선택적 기능** → **기타 Windows 기능**을 통해 수동으로 활성화해야 할 수 있습니다. 자세한 지침은 [필수 조건 가이드](/ko/start/prerequisites/#vbscript-for-msi-installers)를 참조하십시오.
+MSI 패키지 빌드(`tauri.conf.json`의 `"targets": "msi"` 또는 `"targets": "all"`)를 위해서는 Windows에서 VBSCRIPT 선택적 기능을 활성화해야 합니다. 이 기능은 대부분의 Windows 설치에서 기본적으로 활성화되어 있지만 `failed to run light.exe`와 같은 오류가 발생하면 **설정** → **앱** → **선택적 기능** → **기타 Windows 기능**을 통해 수동으로 활성화해야 할 수 있습니다. 자세한 지침은 [필수 조건 가이드](/start/prerequisites/#vbscript-for-msi-installers)를 참조하십시오.
 
 :::
 
@@ -187,7 +187,7 @@ NSIS 설치 프로그램 자체는 여전히 에뮬레이션을 통해 ARM 머�
 
 기본적으로 Microsoft Installer(`.msi`)는 WebView2 부트스트래퍼가 설치되지 않은 경우 다운로드해야 하므로 Windows 7에서 작동하지 않습니다
 (운영 체제에서 TLS 1.2가 활성화되지 않은 경우 실패할 수 있음). Tauri에는 WebView2 부트스트래퍼를 임베드하는 옵션이 포함되어 있습니다
-(아래의 [WebView2 부트스트래퍼 임베딩](#embedded-bootstrapper) 섹션 참조).
+(아래의 [WebView2 부트스트래퍼 임베딩](#임베드된-부트스트래퍼) 섹션 참조).
 NSIS 기반 설치 프로그램(`-setup.exe`)은 Windows 7에서도 `downloadBootstrapper` 모드를 지원합니다.
 
 또한 Windows 7에서 알림 API를 사용하려면 `windows7-compat` Cargo 기능을 활성화해야 합니다:
@@ -214,11 +214,11 @@ $env:TAURI_BUNDLER_WIX_FIPS_COMPLIANT="true"
 
 | 설치 방법                                | 인터넷 연결 필요? | 추가 설치 프로그램 크기 | 비고                                                                                                                   |
 | :------------------------------------------------- | :---------------------------- | :------------------------ | :---------------------------------------------------------------------------------------------------------------------- |
-| [`downloadBootstrapper`](#downloaded-bootstrapper) | 예                           | 0MB                       | `기본값` <br /> 설치 프로그램 크기가 작지만 `.msi` 파일을 통한 Windows 7 배포에는 권장되지 않습니다. |
-| [`embedBootstrapper`](#embedded-bootstrapper)      | 예                           | ~1.8MB                    | `.msi` 설치 프로그램에 대한 Windows 7 지원이 더 좋습니다.                                                                      |
-| [`offlineInstaller`](#offline-installer)           | 아니요                            | ~127MB                    | WebView2 설치 프로그램을 임베드합니다. 오프라인 환경에 권장됩니다.                                                        |
-| [`fixedVersion`](#fixed-version)                   | 아니요                            | ~180MB                    | 고정된 WebView2 버전을 임베드합니다.                                                                                        |
-| [`skip`](#skipping-installation)                   | 아니요                            | 0MB                       | ⚠️ 권장하지 않음 <br /> Windows 설치 프로그램의 일부로 WebView2를 설치하지 않습니다.                               |
+| [`downloadBootstrapper`](#다운로드된-부트스트래퍼) | 예                           | 0MB                       | `기본값` <br /> 설치 프로그램 크기가 작지만 `.msi` 파일을 통한 Windows 7 배포에는 권장되지 않습니다. |
+| [`embedBootstrapper`](#임베드된-부트스트래퍼)      | 예                           | ~1.8MB                    | `.msi` 설치 프로그램에 대한 Windows 7 지원이 더 좋습니다.                                                                      |
+| [`offlineInstaller`](#오프라인-설치-프로그램)           | 아니요                            | ~127MB                    | WebView2 설치 프로그램을 임베드합니다. 오프라인 환경에 권장됩니다.                                                        |
+| [`fixedVersion`](#고정-버전)                   | 아니요                            | ~180MB                    | 고정된 WebView2 버전을 임베드합니다.                                                                                        |
+| [`skip`](#설치-건너뛰기)                   | 아니요                            | 0MB                       | ⚠️ 권장하지 않음 <br /> Windows 설치 프로그램의 일부로 WebView2를 설치하지 않습니다.                               |
 
 :::info
 

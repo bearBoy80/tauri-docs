@@ -1,5 +1,4 @@
 ---
-import { Image } from 'astro:assets';
 import { existsSync, readFileSync } from 'node:fs';
 import { GITHUB_SPONSORS_FILE } from 'packages/fetch-sponsors/config';
 import type { GitHubSponsor } from 'packages/fetch-sponsors/types';
@@ -24,7 +23,7 @@ const gitHubSponsorsLoaded = gitHubSponsors.length > 0;
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Image class="avatar" inferSize src={sponsor.avatarUrl} alt={sponsor.name} />
+              <img class="avatar" src={sponsor.avatarUrl} alt={sponsor.name} loading="lazy" />
             </a>
           )}
         </div>

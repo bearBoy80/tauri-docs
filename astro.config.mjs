@@ -67,7 +67,7 @@ const authors = {
   },
 };
 
-const site = 'https://v2.tauri.app';
+const site = 'https://tauri.ubitools.com';
 
 // https://astro.build/config
 export default defineConfig({
@@ -84,6 +84,9 @@ export default defineConfig({
                 en: 'Guides',
                 'zh-CN': '指引',
                 es: 'Guías',
+                fr: 'Guides',
+                ja: 'ガイド',
+                ko: '가이드',
               },
               id: 'guides',
               link: '/start/',
@@ -94,6 +97,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '快速开始',
                     es: 'Guía rápida',
+                    fr: 'Démarrage rapide',
+                    ja: 'クイックスタート',
+                    ko: '빠른 시작',
                   },
                   collapsed: true,
                   items: [
@@ -130,6 +136,9 @@ export default defineConfig({
                       translations: {
                         'zh-CN': '前端配置',
                         es: 'Configuración del frontend',
+                        fr: 'Configuration du frontend',
+                        ja: 'フロントエンド設定',
+                        ko: '프론트엔드 설정',
                       },
                       collapsed: true,
                       autogenerate: { directory: 'start/frontend' },
@@ -139,6 +148,9 @@ export default defineConfig({
                       translations: {
                         'zh-CN': '升级和迁移',
                         es: 'Actualizar y migrar',
+                        fr: 'Mise à jour et migration',
+                        ja: 'アップグレードと移行',
+                        ko: '업그레이드 및 마이그레이션',
                       },
                       collapsed: true,
                       autogenerate: { directory: 'start/migrate' },
@@ -150,6 +162,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '核心概念',
                     es: 'Conceptos básicos',
+                    fr: 'Concepts fondamentaux',
+                    ja: 'コアコンセプト',
+                    ko: '핵심 개념',
                   },
                   collapsed: true,
                   autogenerate: { directory: 'concept' },
@@ -159,6 +174,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '安全',
                     es: 'Seguridad',
+                    fr: 'Sécurité',
+                    ja: 'セキュリティ',
+                    ko: '보안',
                   },
                   collapsed: true,
                   autogenerate: { directory: 'security' },
@@ -168,6 +186,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '开发',
                     es: 'Desarrollo',
+                    fr: 'Développement',
+                    ja: '開発',
+                    ko: '개발',
                   },
                   collapsed: true,
                   items: [
@@ -182,16 +203,37 @@ export default defineConfig({
                     'develop/icons',
                     {
                       label: 'Debug',
+                      translations: {
+                        'zh-CN': '调试',
+                        es: 'Depuración',
+                        fr: 'Débogage',
+                        ja: 'デバッグ',
+                        ko: '디버그',
+                      },
                       collapsed: true,
                       autogenerate: { directory: 'develop/Debug' },
                     },
                     {
                       label: 'Plugins',
+                      translations: {
+                        'zh-CN': '插件',
+                        es: 'Plugins',
+                        fr: 'Plugins',
+                        ja: 'プラグイン',
+                        ko: '플러그인',
+                      },
                       collapsed: true,
                       autogenerate: { directory: 'develop/Plugins' },
                     },
                     {
                       label: 'Tests',
+                      translations: {
+                        'zh-CN': '测试',
+                        es: 'Pruebas',
+                        fr: 'Tests',
+                        ja: 'テスト',
+                        ko: '테스트',
+                      },
                       collapsed: true,
                       autogenerate: { directory: 'develop/Tests' },
                     },
@@ -202,6 +244,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '分发',
                     es: 'Distribuir',
+                    fr: 'Distribution',
+                    ja: '配布',
+                    ko: '배포',
                   },
                   collapsed: true,
                   autogenerate: { directory: 'distribute' },
@@ -211,6 +256,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '学习',
                     es: 'Aprende',
+                    fr: 'Apprendre',
+                    ja: '学習',
+                    ko: '학습',
                   },
                   collapsed: true,
                   autogenerate: { directory: 'learn' },
@@ -220,6 +268,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '插件',
                     es: 'Plugins',
+                    fr: 'Plugins',
+                    ja: 'プラグイン',
+                    ko: '플러그인',
                   },
                   collapsed: true,
                   autogenerate: { directory: 'plugin' },
@@ -229,6 +280,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '关于',
                     es: 'Acerca de',
+                    fr: 'À propos',
+                    ja: '概要',
+                    ko: '소개',
                   },
                   collapsed: true,
                   autogenerate: { directory: 'about' },
@@ -236,7 +290,14 @@ export default defineConfig({
               ],
             },
             {
-              label: { en: 'References', 'zh-CN': '参考', es: 'Referencias' },
+              label: {
+                en: 'References',
+                'zh-CN': '参考',
+                es: 'Referencias',
+                fr: 'Références',
+                ja: 'リファレンス',
+                ko: '레퍼런스',
+              },
               id: 'references',
               link: '/reference/cli',
               icon: 'document',
@@ -246,6 +307,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '命令行接口（CLI）',
                     es: 'Interfaz de línea de comandos',
+                    fr: 'Interface de ligne de commande',
+                    ja: 'コマンドラインインターフェース',
+                    ko: '명령줄 인터페이스',
                   },
                   link: '/reference/cli/',
                 },
@@ -254,6 +318,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '安全',
                     es: 'Seguridad',
+                    fr: 'Sécurité',
+                    ja: 'セキュリティ',
+                    ko: '보안',
                   },
                   collapsed: true,
                   autogenerate: { directory: 'reference/acl' },
@@ -263,6 +330,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '配置',
                     es: 'Configuración',
+                    fr: 'Configuration',
+                    ja: '設定',
+                    ko: '설정',
                   },
                   link: '/reference/config/',
                 },
@@ -271,6 +341,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '环境变量',
                     es: 'Variables de entorno',
+                    fr: 'Variables d\'environnement',
+                    ja: '環境変数',
+                    ko: '환경 변수',
                   },
                   link: '/reference/environment-variables/',
                 },
@@ -279,6 +352,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': 'Webview 版本',
                     es: 'Versiones de Webview',
+                    fr: 'Versions de Webview',
+                    ja: 'Webview バージョン',
+                    ko: 'Webview 버전',
                   },
                   link: '/reference/webview-versions/',
                 },
@@ -287,6 +363,9 @@ export default defineConfig({
                   translations: {
                     'zh-CN': '发行版',
                     es: 'Lanzamientos',
+                    fr: 'Versions',
+                    ja: 'リリース',
+                    ko: '릴리스',
                   },
                   collapsed: true,
                   autogenerate: { directory: 'release' },
@@ -303,7 +382,14 @@ export default defineConfig({
               ],
             },
             {
-              label: 'Blog',
+              label: {
+                en: 'Blog',
+                'zh-CN': '博客',
+                es: 'Blog',
+                fr: 'Blog',
+                ja: 'ブログ',
+                ko: '블로그',
+              },
               id: 'blog',
               link: '/blog/',
               icon: 'pen',
@@ -362,6 +448,14 @@ export default defineConfig({
           },
         },
         {
+          tag: 'script',
+          attrs: {
+            async: true,
+            src: 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1331971422311386',
+            crossorigin: 'anonymous',
+          },
+        },
+        {
           tag: 'link',
           attrs: {
             rel: 'manifest',
@@ -416,7 +510,7 @@ export default defineConfig({
     }),
   ],
   image: {
-    domains: ['tauri.app', 'images.opencollective.com', 'avatars.githubusercontent.com'],
+    domains: ['ubitools.com', 'images.opencollective.com', 'avatars.githubusercontent.com'],
   },
   markdown: {
     shikiConfig: {

@@ -31,7 +31,7 @@ NSIS 安装程序的交叉编译如下所示。
 
 :::note[MSI 包的 VBSCRIPT 要求]
 
-构建 MSI 包（`tauri.conf.json` 中的 `"targets": "msi"` 或 `"targets": "all"`）需要启用 Windows 上的 VBSCRIPT 可选功能。此功能在大多数 Windows 安装上默认启用，但如果遇到类似 `failed to run light.exe` 的错误，可能需要通过 **设置** → **应用** → **可选功能** → **更多 Windows 功能** 手动启用它。有关详细说明，请参阅 [先决条件指南](/zh-cn/start/prerequisites/#vbscript-for-msi-installers)。
+构建 MSI 包（`tauri.conf.json` 中的 `"targets": "msi"` 或 `"targets": "all"`）需要启用 Windows 上的 VBSCRIPT 可选功能。此功能在大多数 Windows 安装上默认启用，但如果遇到类似 `failed to run light.exe` 的错误，可能需要通过 **设置** → **应用** → **可选功能** → **更多 Windows 功能** 手动启用它。有关详细说明，请参阅 [先决条件指南](/start/prerequisites/#vbscript-for-msi-installers)。
 
 :::
 
@@ -186,7 +186,7 @@ Tauri CLI 默认使用你机器的架构编译你的可执行文件。
 
 默认情况下，Microsoft Installer (`.msi`) 在 Windows 7 上不起作用，因为它需要下载 WebView2 引导程序（如果未安装）
 （如果操作系统中未启用 TLS 1.2，这可能会失败）。Tauri 包含一个嵌入 WebView2 引导程序的选项
-（请参阅下面的 [嵌入 WebView2 引导程序](#embedded-bootstrapper) 部分）。
+（请参阅下面的 [嵌入 WebView2 引导程序](#嵌入引导程序) 部分）。
 基于 NSIS 的安装程序 (`-setup.exe`) 也支持 Windows 7 上的 `downloadBootstrapper` 模式。
 
 此外，要在 Windows 7 中使用通知 API，你需要启用 `windows7-compat` Cargo 功能：
@@ -213,11 +213,11 @@ $env:TAURI_BUNDLER_WIX_FIPS_COMPLIANT="true"
 
 | 安装方法                                | 需要互联网连接？ | 额外安装程序大小 | 备注                                                                                                                   |
 | :------------------------------------------------- | :---------------------------- | :------------------------ | :---------------------------------------------------------------------------------------------------------------------- |
-| [`downloadBootstrapper`](#downloaded-bootstrapper) | 是                           | 0MB                       | `默认` <br /> 导致更小的安装程序大小，但不建议通过 `.msi` 文件部署 Windows 7。 |
-| [`embedBootstrapper`](#embedded-bootstrapper)      | 是                           | ~1.8MB                    | 更好地支持 Windows 7 的 `.msi` 安装程序。                                                                      |
-| [`offlineInstaller`](#offline-installer)           | 否                            | ~127MB                    | 嵌入 WebView2 安装程序。建议用于离线环境。                                                        |
-| [`fixedVersion`](#fixed-version)                   | 否                            | ~180MB                    | 嵌入固定的 WebView2 版本。                                                                                        |
-| [`skip`](#skipping-installation)                   | 否                            | 0MB                       | ⚠️ 不推荐 <br /> 不会作为 Windows 安装程序的一部分安装 WebView2。                               |
+| [`downloadBootstrapper`](#下载引导程序) | 是                           | 0MB                       | `默认` <br /> 导致更小的安装程序大小，但不建议通过 `.msi` 文件部署 Windows 7。 |
+| [`embedBootstrapper`](#嵌入引导程序)      | 是                           | ~1.8MB                    | 更好地支持 Windows 7 的 `.msi` 安装程序。                                                                      |
+| [`offlineInstaller`](#离线安装程序)           | 否                            | ~127MB                    | 嵌入 WebView2 安装程序。建议用于离线环境。                                                        |
+| [`fixedVersion`](#固定版本)                   | 否                            | ~180MB                    | 嵌入固定的 WebView2 版本。                                                                                        |
+| [`skip`](#跳过安装)                   | 否                            | 0MB                       | ⚠️ 不推荐 <br /> 不会作为 Windows 安装程序的一部分安装 WebView2。                               |
 
 :::info
 

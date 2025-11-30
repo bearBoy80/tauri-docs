@@ -1,0 +1,52 @@
+---
+title: Qu'est-ce que Tauri ?
+i18nReady: true
+sidebar:
+  order: 0
+---
+
+Tauri est un framework pour créer des binaires minuscules et rapides pour toutes les principales plateformes de bureau et mobiles. Les développeurs peuvent intégrer n'importe quel framework frontend qui compile vers HTML, JavaScript et CSS pour créer leur expérience utilisateur tout en exploitant des langages tels que Rust, Swift et Kotlin pour la logique backend lorsque nécessaire.
+
+Commencez à créer avec [`create-tauri-app`](https://github.com/tauri-apps/create-tauri-app) en utilisant l'une des commandes ci-dessous. Assurez-vous de suivre le [guide des prérequis](/fr/start/prerequisites/) pour installer toutes les dépendances requises par Tauri. Pour un guide plus détaillé, consultez [Créer un projet](/fr/start/create-project/#using-create-tauri-app)
+
+import Cta from '../../_fragments/cta.mdx';
+
+<Cta />
+
+Après avoir créé votre première application, consultez [Structure du projet](/fr/start/project-structure/) pour comprendre ce que fait chaque fichier.
+
+Ou explorez les configurations de projet et les fonctionnalités à partir des exemples ([tauri](https://github.com/tauri-apps/tauri/tree/dev/examples) | [plugins-workspace](https://github.com/tauri-apps/plugins-workspace/tree/v2/examples/api))
+
+## Pourquoi Tauri ?
+
+Tauri présente 3 avantages principaux pour les développeurs :
+
+- Fondation sécurisée pour créer des applications
+- Taille de bundle plus petite en utilisant la webview native du système
+- Flexibilité pour les développeurs d'utiliser n'importe quel frontend et des bindings pour plusieurs langages
+
+En savoir plus sur la philosophie de Tauri dans l'[article de blog Tauri 1.0](/blog/tauri-1-0/).
+
+### Fondation sécurisée
+
+En étant construit sur Rust, Tauri est capable de tirer parti de la sécurité mémoire, des threads et des types offerts par Rust. Les applications construites sur Tauri peuvent automatiquement bénéficier de ces avantages même sans avoir besoin d'être développées par des experts Rust.
+
+Tauri subit également un audit de sécurité pour les versions majeures et mineures. Cela couvre non seulement le code dans l'organisation Tauri, mais aussi les dépendances en amont dont Tauri dépend. Bien sûr, cela n'atténue pas tous les risques, mais cela fournit une base solide sur laquelle les développeurs peuvent construire.
+
+Lisez la [politique de sécurité de Tauri](https://github.com/tauri-apps/tauri/security/policy) et le [rapport d'audit Tauri 2.0](https://github.com/tauri-apps/tauri/blob/dev/audits/Radically_Open_Security-v2-report.pdf).
+
+### Taille d'application plus petite
+
+Les applications Tauri tirent parti de la webview déjà disponible sur le système de chaque utilisateur. Une application Tauri ne contient que le code et les ressources spécifiques à cette application et n'a pas besoin d'inclure un moteur de navigateur avec chaque application. Cela signifie qu'une application Tauri minimale peut faire moins de 600 Ko.
+
+En savoir plus sur la création d'applications optimisées dans le concept [Taille de l'application](/fr/concept/size/).
+
+### Architecture flexible
+
+Puisque Tauri utilise des technologies web, cela signifie que pratiquement n'importe quel framework frontend est compatible avec Tauri. Le [guide de configuration frontend](/fr/start/frontend/) contient des configurations communes pour les frameworks frontend populaires.
+
+Les bindings entre JavaScript et Rust sont disponibles pour les développeurs en utilisant la fonction `invoke` en JavaScript et les bindings Swift et Kotlin sont disponibles pour les [Plugins Tauri](/fr/develop/plugins/).
+
+[TAO](https://github.com/tauri-apps/tao) est responsable de la création de fenêtres Tauri et [WRY](https://github.com/tauri-apps/wry) est responsable du rendu de la webview. Ce sont des bibliothèques maintenues par Tauri et peuvent être utilisées directement si une intégration système plus profonde est requise en dehors de ce que Tauri expose.
+
+De plus, Tauri maintient un certain nombre de plugins pour étendre ce que le cœur de Tauri expose. Vous pouvez trouver ces plugins ainsi que ceux fournis par la communauté dans la [section Plugins](/fr/plugin/).

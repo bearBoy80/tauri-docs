@@ -1,5 +1,4 @@
 ---
-import { Image } from 'astro:assets';
 import { OC_IMAGE_DIMENSION } from 'packages/fetch-sponsors/config';
 import { type OpenCollectiveSponsor as Sponsor } from 'packages/fetch-sponsors/types';
 import fallbackImage from 'src/assets/fallback.jpg';
@@ -20,23 +19,23 @@ function getUrl(sponsor: Sponsor): string {
   return `${sponsor.socialLinks?.website ?? sponsor.profileUrl}?ref=tauri.app&utm_source=tauri.app`;
 }
 
-const res = await fetch(sponsor.avatarUrl, { method: 'HEAD' });
-if (res && !res.ok) {
-  sponsor.avatarUrl = fallbackImage.src;
-}
+// Use <img> tag for external URLs to avoid build-time fetch timeout
+// Fallback to local image on client-side error via onerror handler
+const avatarSrc = sponsor.avatarUrl;
 ---
 
 {
   sponsor.tier === 'platinum' && (
     <div class="platinum image-container">
       <a href={getUrl(sponsor)} target="_blank">
-        <Image
-          loading={'lazy'}
-          src={sponsor.avatarUrl}
+        <img
+          loading="lazy"
+          src={avatarSrc}
           alt={sponsor.name}
           width={OC_IMAGE_DIMENSION}
           height={OC_IMAGE_DIMENSION}
           class={`image ${sponsor.tier} ${roundingStyle[sponsor.type]}`}
+          onerror={`this.src='${fallbackImage.src}'; this.onerror=null;`}
         />
         <p class="name platinum">{sponsor.name}</p>
       </a>
@@ -48,13 +47,14 @@ if (res && !res.ok) {
   (sponsor.tier === 'gold' || sponsor.tier === 'silver') && (
     <div class="image-container">
       <a href={getUrl(sponsor)} target="_blank">
-        <Image
-          loading={'lazy'}
-          src={sponsor.avatarUrl}
+        <img
+          loading="lazy"
+          src={avatarSrc}
           alt={sponsor.name}
           width={OC_IMAGE_DIMENSION}
           height={OC_IMAGE_DIMENSION}
           class={`image ${sponsor.tier} ${roundingStyle[sponsor.type]}`}
+          onerror={`this.src='${fallbackImage.src}'; this.onerror=null;`}
         />
       </a>
     </div>
